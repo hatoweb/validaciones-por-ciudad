@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sistema de Análisis de Validaciones por Ciudad
 
 Sistema web para visualizar y analizar validaciones de transporte público por distritos y barrios de Asunción y Departamento Central.
@@ -138,3 +139,7 @@ Copyright © 2025 Ministerio de Obras Públicas y Comunicaciones - Paraguay
 
 Desarrollado por equipo CID-DMT-VMT
 
+=======
+# validaciones-por-ciudad
+Sistema de validacion por Ciudad y Barrio - zona asuncion y central
+>>>>>>> 9c8f8a10a37e600b8201a588eb3ca4b9ad991a62
