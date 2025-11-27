@@ -276,6 +276,8 @@ def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nomb
             'cantidad_validaciones': int(row.get('cantidad_validaciones', 0)),
             'cantidad_pasajeros': int(row.get('cantidad_pasajeros', 0)),
             'cantidad_buses': int(row.get('cantidad_buses', 0)),
+            'promedio_pasajeros_diario': float(row.get('promedio_pasajeros_diario', 0.0)),
+            'promedio_buses_diario': float(row.get('promedio_buses_diario', 0.0)),
             'empresas': row.get('empresas', '') or '',
             'lineas': row.get('lineas', '') or ''
         }
@@ -318,6 +320,8 @@ def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre):
         validaciones = {d['nombre']: d['cantidad_validaciones'] for d in cache_data['areas']}
         pasajeros = {d['nombre']: d['cantidad_pasajeros'] for d in cache_data['areas']}
         buses = {d['nombre']: d['cantidad_buses'] for d in cache_data['areas']}
+        promedio_pasajeros = {d['nombre']: d.get('promedio_pasajeros_diario', 0.0) for d in cache_data['areas']}
+        promedio_buses = {d['nombre']: d.get('promedio_buses_diario', 0.0) for d in cache_data['areas']}
         empresas = {d['nombre']: d.get('empresas', '') for d in cache_data['areas']}
         lineas = {d['nombre']: d.get('lineas', '') for d in cache_data['areas']}
         poblaciones = {d['nombre']: d.get('poblacion') for d in cache_data['areas'] if 'poblacion' in d}
@@ -325,6 +329,8 @@ def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre):
         gdf_resultado['cantidad_validaciones'] = gdf_resultado[col_nombre].map(validaciones).fillna(0).astype(int)
         gdf_resultado['cantidad_pasajeros'] = gdf_resultado[col_nombre].map(pasajeros).fillna(0).astype(int)
         gdf_resultado['cantidad_buses'] = gdf_resultado[col_nombre].map(buses).fillna(0).astype(int)
+        gdf_resultado['promedio_pasajeros_diario'] = gdf_resultado[col_nombre].map(promedio_pasajeros).fillna(0.0).astype(float)
+        gdf_resultado['promedio_buses_diario'] = gdf_resultado[col_nombre].map(promedio_buses).fillna(0.0).astype(float)
         gdf_resultado['empresas'] = gdf_resultado[col_nombre].map(empresas).fillna('')
         gdf_resultado['lineas'] = gdf_resultado[col_nombre].map(lineas).fillna('')
         if poblaciones:
@@ -799,15 +805,32 @@ def asignar_validaciones_a_areas(df_validaciones, gdf_areas, col_nombre):
     # Contar buses únicos (idsam distintos) por área
     conteo_buses = validaciones_con_area.groupby(col_nombre)['idsam'].nunique().reset_index(name='cantidad_buses')
     
+    # Calcular promedios diarios: extraer la fecha de fechahoraevento
+    validaciones_con_area['fecha'] = pd.to_datetime(validaciones_con_area['fechahoraevento']).dt.date
+    
+    # Contar buses únicos por área y por día
+    buses_por_dia = validaciones_con_area.groupby([col_nombre, 'fecha'])['idsam'].nunique().reset_index(name='buses_dia')
+    promedio_buses = buses_por_dia.groupby(col_nombre)['buses_dia'].mean().reset_index(name='promedio_buses_diario')
+    promedio_buses['promedio_buses_diario'] = promedio_buses['promedio_buses_diario'].round(1)
+    
+    # Contar pasajeros únicos por área y por día
+    pasajeros_por_dia = validaciones_con_area.groupby([col_nombre, 'fecha'])['serialmediopago'].nunique().reset_index(name='pasajeros_dia')
+    promedio_pasajeros = pasajeros_por_dia.groupby(col_nombre)['pasajeros_dia'].mean().reset_index(name='promedio_pasajeros_diario')
+    promedio_pasajeros['promedio_pasajeros_diario'] = promedio_pasajeros['promedio_pasajeros_diario'].round(1)
+    
     # Unir todos los conteos
     conteo_completo = conteo_validaciones.merge(conteo_pasajeros, on=col_nombre, how='outer')
     conteo_completo = conteo_completo.merge(conteo_buses, on=col_nombre, how='outer')
+    conteo_completo = conteo_completo.merge(promedio_buses, on=col_nombre, how='outer')
+    conteo_completo = conteo_completo.merge(promedio_pasajeros, on=col_nombre, how='outer')
     
     # Unir con geometrías
     gdf_resultado = gdf_areas.merge(conteo_completo, on=col_nombre, how='left')
     gdf_resultado['cantidad_validaciones'] = gdf_resultado['cantidad_validaciones'].fillna(0).astype(int)
     gdf_resultado['cantidad_pasajeros'] = gdf_resultado['cantidad_pasajeros'].fillna(0).astype(int)
     gdf_resultado['cantidad_buses'] = gdf_resultado['cantidad_buses'].fillna(0).astype(int)
+    gdf_resultado['promedio_buses_diario'] = gdf_resultado['promedio_buses_diario'].fillna(0.0).astype(float)
+    gdf_resultado['promedio_pasajeros_diario'] = gdf_resultado['promedio_pasajeros_diario'].fillna(0.0).astype(float)
     
     # Obtener empresas y líneas que pasan por cada área
     print("Consultando empresas y líneas por área...")
@@ -2130,6 +2153,15 @@ def api_validaciones():
                         primer_registro['cantidad_validaciones'] = grupo['cantidad_validaciones'].sum()
                         primer_registro['cantidad_pasajeros'] = grupo['cantidad_pasajeros'].sum()
                         primer_registro['cantidad_buses'] = grupo['cantidad_buses'].sum()
+                        # Para promedios diarios, promediar los promedios (promedio de promedios)
+                        if 'promedio_pasajeros_diario' in grupo.columns:
+                            promedios_pasajeros = grupo['promedio_pasajeros_diario'].dropna()
+                            if len(promedios_pasajeros) > 0:
+                                primer_registro['promedio_pasajeros_diario'] = round(promedios_pasajeros.mean(), 1)
+                        if 'promedio_buses_diario' in grupo.columns:
+                            promedios_buses = grupo['promedio_buses_diario'].dropna()
+                            if len(promedios_buses) > 0:
+                                primer_registro['promedio_buses_diario'] = round(promedios_buses.mean(), 1)
                         # Para empresas y líneas, combinar listas únicas
                         empresas_unicas = set()
                         lineas_unicas = set()
