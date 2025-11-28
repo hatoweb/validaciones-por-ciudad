@@ -4,17 +4,15 @@ FROM node:20-alpine as build
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json primero (para mejor cache)
-COPY REACT/validaciones-frontend/package*.json ./
-
-# Instalar dependencias
-RUN npm install --legacy-peer-deps
-
-# Copiar todo el código fuente
+# Copiar todo el código fuente del frontend
 COPY REACT/validaciones-frontend/ ./
 
-# Asegurar que todas las dependencias estén correctamente instaladas
-RUN npm install --legacy-peer-deps
+# Limpiar cache de npm e instalar dependencias
+RUN npm cache clean --force && \
+    npm install --legacy-peer-deps
+
+# Verificar instalación de ajv (necesario para react-scripts)
+RUN npm list ajv || npm install ajv@^8.12.0 --legacy-peer-deps
 
 # Construir la aplicación para producción
 RUN npm run build
