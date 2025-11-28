@@ -7,8 +7,9 @@ WORKDIR /app
 # Copiar todo el código fuente del frontend
 COPY REACT/validaciones-frontend/ ./
 
-# Instalar dependencias (con --legacy-peer-deps para resolver conflictos)
-RUN npm install --legacy-peer-deps
+# Instalar dependencias y asegurar que ajv esté instalado correctamente
+RUN npm install --legacy-peer-deps && \
+    npm install ajv@^8.12.0 --save --legacy-peer-deps || true
 
 # Construir la aplicación para producción
 RUN npm run build
