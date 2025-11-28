@@ -1,0 +1,220 @@
+/* src/App.css */
+body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background:#f4f6f8; color:#222; }
+.app-container { padding:18px; max-width:1400px; margin:0 auto; }
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(20,30,40,0.08);
+  padding: 12px;
+  border: 1px solid rgba(20,30,40,0.04);
+}
+
+.topbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 16px;
+  margin-bottom:12px;
+}
+
+.topbar h2 { margin:0; font-size:18px; }
+
+.controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+.control-checkbox { display:flex; align-items:center; gap:6px; font-size:14px; }
+.control-criterio { display:flex; align-items:center; gap:6px; margin-left:8px; }
+
+.btn {
+  background:#12776f;
+  color:#fff;
+  border:none;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.btn:disabled { opacity:0.6; cursor:not-allowed; }
+
+.content { display:flex; gap:12px; }
+.map-area { flex:1; padding:6px; }
+.sidebar { width:320px; display:flex; flex-direction:column; gap:12px; }
+
+.legend { padding:10px; }
+.legend-row { display:flex; align-items:center; gap:10px; margin-top:8px; }
+.legend-swatch { width:28px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,0.06) }
+.legend-label { font-size:13px; color:#222 }
+
+.totals { padding:12px; }
+.totals h3 { margin-top:0; }
+
+.map-placeholder { height:620px; display:flex; align-items:center; justify-content:center; background:#eef3f2; border-radius:8px; color:#666 }
+
+.table-section { margin-top:12px; padding:12px; }
+.table-wrapper { max-height:280px; overflow:auto; border-radius:8px; margin-top:8px; border:1px solid rgba(0,0,0,0.04) }
+
+.data-table { width:100%; border-collapse:collapse; font-size:13px; }
+.data-table thead th { position: sticky; top:0; background:#fff; z-index:2; padding:8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:left; }
+.data-table thead th.sortable { 
+  cursor:pointer; 
+  user-select:none; 
+  transition:background 0.2s;
+  position: relative;
+}
+.data-table thead th.sortable:hover { 
+  background:rgba(18,119,111,0.1);
+  color: #12776f;
+}
+.data-table thead th.sortable:active {
+  background:rgba(18,119,111,0.15);
+}
+.data-table td { padding:8px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
+.data-table tbody tr:hover { background: rgba(18,119,111,0.04); }
+.nowrap { white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis; }
+.data-table td.clickable-name {
+  cursor: pointer;
+  color: #12776f;
+  text-decoration: underline;
+  transition: all 0.2s;
+}
+.data-table td.clickable-name:hover {
+  color: #0d5d57;
+  background: rgba(18,119,111,0.08);
+  text-decoration: none;
+}
+.small { font-size:12px; color:#333 }
+
+.opacity-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #ddd;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #12776f;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+
+.opacity-slider::-webkit-slider-thumb:hover {
+  background: #0d5d57;
+}
+
+.opacity-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #12776f;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+
+.opacity-slider::-moz-range-thumb:hover {
+  background: #0d5d57;
+}
+
+/* Footer Styles */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-top: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(20,30,40,0.08);
+  border: 1px solid rgba(20,30,40,0.04);
+  font-size: 11px;
+  color: #666;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.footer-left,
+.footer-center,
+.footer-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.footer-left {
+  justify-content: flex-start;
+}
+
+.footer-right {
+  justify-content: flex-end;
+}
+
+.footer-logo-ministerio {
+  max-height: 40px;
+  max-width: 200px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.footer-logo-cidsa {
+  max-height: 40px;
+  max-width: 150px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.footer-center {
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.footer-copyright {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.footer-dev {
+  font-size: 10px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+  .app-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .footer-left,
+  .footer-right {
+    justify-content: center;
+  }
+  
+  .footer-logo-ministerio,
+  .footer-logo-cidsa {
+    max-height: 30px;
+  }
+  
+  .footer-copyright,
+  .footer-dev {
+    font-size: 10px;
+  }
+}
