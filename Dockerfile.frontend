@@ -4,12 +4,17 @@ FROM node:18-alpine as build
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar todo el código fuente del frontend
+# Copiar package.json y package-lock.json primero (para mejor cache)
+COPY REACT/validaciones-frontend/package*.json ./
+
+# Instalar dependencias
+RUN npm install --legacy-peer-deps
+
+# Copiar todo el código fuente
 COPY REACT/validaciones-frontend/ ./
 
-# Instalar dependencias y asegurar que ajv esté instalado correctamente
-RUN npm install --legacy-peer-deps && \
-    npm install ajv@^8.12.0 --save --legacy-peer-deps || true
+# Asegurar que todas las dependencias estén correctamente instaladas
+RUN npm install --legacy-peer-deps
 
 # Construir la aplicación para producción
 RUN npm run build
