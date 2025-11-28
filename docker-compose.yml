@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: validaciones-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_RUTAS_HOST=${DB_RUTAS_HOST:-${DB_HOST}}
+      - DB_RUTAS_NAME=${DB_RUTAS_NAME}
+      - DB_RUTAS_USER=${DB_RUTAS_USER:-${DB_USER}}
+      - DB_RUTAS_PASSWORD=${DB_RUTAS_PASSWORD:-${DB_PASSWORD}}
+      - DB_RUTAS_PORT=${DB_RUTAS_PORT:-5432}
+      - FLASK_ENV=production
+    volumes:
+      - ./cache_validaciones:/app/cache_validaciones
+      - ./CIUDADES:/app/CIUDADES:ro
+    networks:
+      - validaciones-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/franjas_operativas"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: validaciones-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - validaciones-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  validaciones-network:
+    driver: bridge
+

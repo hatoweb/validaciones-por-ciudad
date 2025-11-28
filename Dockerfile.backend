@@ -1,0 +1,40 @@
+# Dockerfile para Backend Flask/Python
+FROM python:3.11-slim
+
+# Instalar dependencias del sistema necesarias para GeoPandas y PostgreSQL
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    libgdal-dev \
+    gdal-bin \
+    python3-gdal \
+    libgeos-dev \
+    libproj-dev \
+    libspatialindex-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Establecer variables de entorno para GDAL
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar requirements y instalar dependencias Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código de la aplicación
+COPY validaciones_por_ciudad.py .
+COPY CIUDADES ./CIUDADES/
+
+# Crear directorio para cache
+RUN mkdir -p cache_validaciones
+
+# Exponer puerto 5000
+EXPOSE 5000
+
+# Comando para ejecutar la aplicación
+CMD ["python", "validaciones_por_ciudad.py"]
+
