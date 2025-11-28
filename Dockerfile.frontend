@@ -4,18 +4,11 @@ FROM node:18-alpine as build
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
-COPY REACT/validaciones-frontend/package*.json ./
-
-# Instalar dependencias
-RUN npm install --legacy-peer-deps
-
-# Copiar código fuente completo
+# Copiar todo el código fuente del frontend
 COPY REACT/validaciones-frontend/ ./
 
-# Limpiar e instalar dependencias nuevamente para asegurar compatibilidad
-RUN rm -rf node_modules package-lock.json && \
-    npm install --legacy-peer-deps
+# Instalar dependencias (con --legacy-peer-deps para resolver conflictos)
+RUN npm install --legacy-peer-deps
 
 # Construir la aplicación para producción
 RUN npm run build
