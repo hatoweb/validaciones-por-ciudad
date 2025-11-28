@@ -8,13 +8,14 @@ WORKDIR /app
 COPY REACT/validaciones-frontend/package*.json ./
 
 # Instalar dependencias
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
-# Copiar código fuente
+# Copiar código fuente completo
 COPY REACT/validaciones-frontend/ ./
 
-# Asegurar que todas las dependencias estén instaladas correctamente
-RUN npm install --legacy-peer-deps
+# Limpiar e instalar dependencias nuevamente para asegurar compatibilidad
+RUN rm -rf node_modules package-lock.json && \
+    npm install --legacy-peer-deps
 
 # Construir la aplicación para producción
 RUN npm run build
