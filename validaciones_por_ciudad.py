@@ -132,20 +132,25 @@ def cargar_vias():
                 print(f"✓ Cargado: {ruta_completa} ({len(gdf)} vias)")
             except Exception as e:
                 print(f"✗ Error cargando {ruta_completa}: {e}")
+    
     if not gdfs_vias:
-        print("No se pudieron cargar los shapefiles de vias")
-    # Combinar todos los GeoDataFrames de distritos
-    gdf_combinado = pd.concat(gdfs_vias, ignore_index=True)
-    
-    print(f"\n✓ Total de vías cargadas: {len(gdf_combinado)}")
-    print(f"Columnas disponibles: {gdf_combinado.columns.tolist()}")
-    
-    col_nombre = 'NOMBRE'
-    
-    if col_nombre is None:
-        col_nombre = gdf_combinado.columns[0]
-    
-    print(f"Usando columna '{col_nombre}' para nombres de vías")
+        print("⚠ No se pudieron cargar los shapefiles de vias")
+        # Retornar un GeoDataFrame vacío con estructura básica
+        gdf_combinado = gpd.GeoDataFrame(columns=['NOMBRE', 'geometry'], crs='EPSG:4326')
+        col_nombre = 'NOMBRE'
+    else:
+        # Combinar todos los GeoDataFrames de vías
+        gdf_combinado = pd.concat(gdfs_vias, ignore_index=True)
+        print(f"\n✓ Total de vías cargadas: {len(gdf_combinado)}")
+        print(f"Columnas disponibles: {gdf_combinado.columns.tolist()}")
+        
+        col_nombre = 'NOMBRE'
+        
+        if col_nombre not in gdf_combinado.columns:
+            col_nombre = gdf_combinado.columns[0] if len(gdf_combinado.columns) > 0 else None
+        
+        if col_nombre:
+            print(f"Usando columna '{col_nombre}' para nombres de vías")
     
     return gdf_combinado, col_nombre
 
@@ -890,23 +895,26 @@ def crear_mapa_inicial(gdf_distritos, col_nombre):
             },
             tooltip=folium.Tooltip(f'<b>{nombre}</b><br>Sin datos')
         ).add_to(mapa)
-    # Agregar vías principales de central y asunción
-    gdf_vias_central = gpd.read_file('CIUDADES/DPTO_CENTRAL/Vías Principales_Central.shp')
-    gdf_vias_asuncion = gpd.read_file('CIUDADES/ASUNCION/Vías Principales_Asuncion.shp')
-    gdf_vias = pd.concat([gdf_vias_central, gdf_vias_asuncion], ignore_index=True)
-    for idx, row in gdf_vias.iterrows():
-        nombre = row['NOMBRE'] if pd.notna(row['NOMBRE']) else "Sin nombre"
-        folium.GeoJson(
-            row['geometry'].__geo_interface__,
-            style_function=lambda x: {
-                # color de la via
-                #Color verde oscuro
-                'color': '#008000',
-                'weight': 3,
-                'fillOpacity': 0
-            },
-            tooltip=folium.Tooltip(f'<b>{nombre}</b><br>Sin datos')
-        ).add_to(mapa)
+    # Agregar vías principales de central y asunción usando la función que maneja errores
+    try:
+        gdf_vias, col_nombre_vias = cargar_vias()
+        if not gdf_vias.empty:
+            for idx, row in gdf_vias.iterrows():
+                nombre = row['NOMBRE'] if pd.notna(row.get('NOMBRE', None)) else "Sin nombre"
+                folium.GeoJson(
+                    row['geometry'].__geo_interface__,
+                    style_function=lambda x: {
+                        # color de la via
+                        #Color verde oscuro
+                        'color': '#008000',
+                        'weight': 3,
+                        'fillOpacity': 0
+                    },
+                    tooltip=folium.Tooltip(f'<b>{nombre}</b><br>Sin datos')
+                ).add_to(mapa)
+    except Exception as e:
+        print(f"⚠ No se pudieron cargar las vías para el mapa inicial: {e}")
+    
     return mapa._repr_html_()
     
 def crear_leyenda_mapa_calor(min_val, max_val, tipo='validaciones'):
@@ -2294,4 +2302,4 @@ if __name__ == "__main__":
     print("\nPresiona Ctrl+C para detener el servidor")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, port=5000)
