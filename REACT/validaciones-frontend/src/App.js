@@ -8,6 +8,75 @@ import './App.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+// Helper para obtener el prefijo de la aplicación basándose en la URL actual
+// Detecta automáticamente si estamos en /validaciones/ o en la raíz
+const getAppPrefix = () => {
+  // Detectar desde la URL actual (más confiable que process.env en runtime)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    
+    // Si estamos en el dominio de producción, siempre usar /validaciones
+    if (hostname === 'sistemas.mopc.gov.py' || hostname.includes('mopc.gov.py')) {
+      return '/validaciones';
+    }
+    
+    // Si el pathname comienza con /validaciones, usar ese prefijo
+    if (pathname && pathname.startsWith('/validaciones')) {
+      return '/validaciones';
+    }
+  }
+  
+  // Si process.env.PUBLIC_URL está configurado, usarlo (funciona en build time)
+  if (process.env.PUBLIC_URL) {
+    return process.env.PUBLIC_URL;
+  }
+  
+  // Fallback: vacío (para desarrollo local en localhost)
+  return '';
+};
+
+// Helper para construir URLs de API con el prefijo correcto
+// El proxy externo mantiene el prefijo /validaciones, por lo que las APIs
+// deben ir a /validaciones/api/... para que el proxy las reenvíe correctamente
+const getApiUrl = (path) => {
+  // Asegurarse de que el path empiece con /
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // Detectar prefijo explícitamente
+  let apiPrefix = '';
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    
+    // Si estamos en el dominio de producción, SIEMPRE usar /validaciones
+    if (hostname === 'sistemas.mopc.gov.py' || hostname.includes('mopc.gov.py')) {
+      apiPrefix = '/validaciones';
+    } else if (pathname && pathname.startsWith('/validaciones')) {
+      apiPrefix = '/validaciones';
+    } else if (process.env.PUBLIC_URL) {
+      apiPrefix = process.env.PUBLIC_URL;
+    }
+  } else if (process.env.PUBLIC_URL) {
+    apiPrefix = process.env.PUBLIC_URL;
+  }
+  
+  const finalUrl = `${apiPrefix}${cleanPath}`;
+  
+  // Log para depuración - siempre activo para ver qué URL se está usando
+  console.log('[DEBUG API] URL construida:', finalUrl, '| Prefijo detectado:', apiPrefix, '| Hostname:', typeof window !== 'undefined' ? window.location.hostname : 'N/A', '| Path original:', path);
+  
+  return finalUrl;
+};
+
+// Helper para construir URLs de archivos estáticos con el prefijo correcto
+const getStaticUrl = (path) => {
+  const prefix = getAppPrefix();
+  // Asegurarse de que el path empiece con /
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${prefix}${cleanPath}`;
+};
+
 function getTurquoiseColor(intensity){
   // if(intensity <= 0.2) return '#d0f2ec';
   // if(intensity <= 0.4) return '#9ee6db';
@@ -154,7 +223,7 @@ export default function App(){
   useEffect(() => {
     const cargarFranjas = async () => {
       try {
-        const res = await axios.get('/api/franjas_operativas');
+        const res = await axios.get(getApiUrl('/api/franjas_operativas'));
         if (res.data.franjas && res.data.franjas.length > 0) {
           setFranjas(res.data.franjas);
           // Seleccionar Pico Mañana por defecto si existe, sino la primera
@@ -208,7 +277,7 @@ export default function App(){
     }
     setLoading(true);
     try {
-      const res = await axios.post('/api/validaciones', {
+      const res = await axios.post(getApiUrl('/api/validaciones'), {
         mes, anio, id_franja: idFranja, incluir_barrios: incluirBarrios
       });
       if(res.data.error){
@@ -934,7 +1003,7 @@ export default function App(){
           </div>
           <div className="card" style={{textAlign: 'center', padding: '15px'}}>
             <img 
-              src="/Logo_CIDSA2.jpg" 
+              src={getStaticUrl('/Logo_CIDSA2.jpg')}
               alt="CIDSA Logo" 
               style={{
                 maxWidth: '100%',
@@ -1081,7 +1150,7 @@ export default function App(){
       <footer className="app-footer">
         <div className="footer-left">
           <img 
-            src="/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png" 
+            src={getStaticUrl('/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png')}
             alt="Ministerio de Obras Públicas y Comunicaciones" 
             className="footer-logo-ministerio"
           />
@@ -1096,7 +1165,7 @@ export default function App(){
         </div>
         <div className="footer-right">
           <img 
-            src="/Logo_CIDSA2.jpg" 
+            src={getStaticUrl('/Logo_CIDSA2.jpg')}
             alt="CIDSA Logo" 
             className="footer-logo-cidsa"
           />
