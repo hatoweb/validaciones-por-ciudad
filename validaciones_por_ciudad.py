@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from psycopg2 import errors as psycopg2_errors
 import geopandas as gpd
 import pandas as pd
 import folium
@@ -2069,9 +2070,24 @@ def api_validaciones():
         if not desde_cache or gdf_resultado is None:
             print(f"   No hay cache válido, consultando base de datos...")
             # No hay cache o no se construyó correctamente -> consultar DB
-            df_validaciones = obtener_validaciones(mes, anio, id_franja)
-            if df_validaciones is None or len(df_validaciones) == 0:
-                return jsonify({'error': 'No se encontraron validaciones para el período seleccionado'}), 404
+            try:
+                df_validaciones = obtener_validaciones(mes, anio, id_franja)
+                if df_validaciones is None:
+                    # Si obtener_validaciones retorna None, puede ser un error de BD o no hay datos
+                    # Lanzar excepción para que sea capturada por el bloque except general
+                    raise Exception('Error al obtener validaciones de la base de datos. Verifique la conexión y el espacio disponible en PostgreSQL.')
+                if len(df_validaciones) == 0:
+                    return jsonify({'error': 'No se encontraron validaciones para el período seleccionado'}), 404
+            except psycopg2_errors.DiskFull as e:
+                # Error específico de espacio en disco
+                error_msg = f'Error: El servidor de base de datos se quedó sin espacio en disco. Por favor contacte al administrador del sistema. Detalles: {str(e)}'
+                print(f"❌ {error_msg}")
+                return jsonify({'error': error_msg, 'details': str(e)}), 500
+            except psycopg2.Error as e:
+                # Otros errores de PostgreSQL
+                error_msg = f'Error de base de datos: {str(e)}'
+                print(f"❌ {error_msg}")
+                return jsonify({'error': error_msg, 'details': str(e)}), 500
 
             # Totales verdaderos (globales) calculados sobre el dataframe original
             total_validaciones = int(len(df_validaciones))
