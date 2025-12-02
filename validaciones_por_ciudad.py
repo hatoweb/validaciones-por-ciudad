@@ -265,6 +265,15 @@ def obtener_cache_key(mes, anio, id_franja, incluir_barrios):
     return f"validaciones_{anio}_{mes:02d}_franja{id_franja}{barrios_suffix}"
 
 def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global=None):
+    # No guardar cache si la consulta es del mes actual (puede tener datos incompletos)
+    ahora = datetime.now()
+    mes_actual = ahora.month
+    anio_actual = ahora.year
+    
+    if mes == mes_actual and anio == anio_actual:
+        print(f"⚠️ No se guardará cache para {mes}/{anio} porque corresponde al mes actual (datos pueden estar incompletos)")
+        return
+    
     cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios)
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
     cache_data = {
@@ -315,6 +324,15 @@ def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nomb
     print(f"✓ Cache guardado: {cache_file}")
 
 def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre):
+    # No cargar cache si la consulta es del mes actual (siempre consultar BD para datos actualizados)
+    ahora = datetime.now()
+    mes_actual = ahora.month
+    anio_actual = ahora.year
+    
+    if mes == mes_actual and anio == anio_actual:
+        print(f"⚠️ No se cargará cache para {mes}/{anio} porque corresponde al mes actual (consulta directa a BD)")
+        return None, False, None
+    
     cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios)
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
     if os.path.exists(cache_file):
