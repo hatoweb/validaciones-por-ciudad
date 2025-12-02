@@ -393,10 +393,12 @@ export default function App(){
         <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
         <b>Pasajeros únicos:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
         ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
+        ${false ? `
         <b>🚌 OFERTA:</b><br>
         <b>Buses únicos:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
         <b>Empresas:</b> ${p.num_empresas || 0}<br/>
         <b>Líneas:</b> ${p.num_lineas || 0}
+        ` : ''}
       </div>
     `;
     // Bind popup (still available on click) but also show on hover
