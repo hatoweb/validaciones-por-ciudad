@@ -925,8 +925,8 @@ export default function App(){
               <option value="validaciones">Validaciones</option>
               <option value="porcentaje">Penetración (%)</option>
               <option value="buses">Buses</option>
-              <option value="empresas">Empresas</option>
-              <option value="lineas">Líneas</option>
+              {/* <option value="empresas">Empresas</option>
+              <option value="lineas">Líneas</option> */}
             </select>
           </label>
 
