@@ -746,13 +746,13 @@ export default function App(){
       pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
       currentX += colWidths.buses;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-      pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
-      currentX += colWidths.empresas;
+      // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
+      // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+      // currentX += colWidths.empresas;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-      pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
-      currentX += colWidths.lineas;
+      // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
+      // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+      // currentX += colWidths.lineas;
 
       pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
       pdf.text('Penet. (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
@@ -793,12 +793,12 @@ export default function App(){
           pdf.rect(currentX, yPosition - 5, colWidths.buses, 7, 'F');
           pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
           currentX += colWidths.buses;
-          pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-          pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
-          currentX += colWidths.empresas;
-          pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-          pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
-          currentX += colWidths.lineas;
+          // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
+          // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+          // currentX += colWidths.empresas;
+          // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
+          // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+          // currentX += colWidths.lineas;
           pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
           pdf.text('Penet. (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
           yPosition += 5;
@@ -841,13 +841,13 @@ export default function App(){
         pdf.text(row.buses.toLocaleString(), currentX + colWidths.buses / 2, yPosition, { align: 'right' });
         currentX += colWidths.buses;
 
-        // Empresas
-        pdf.text(String(row.numEmpresas > 0 ? row.numEmpresas : '-'), currentX + colWidths.empresas / 2, yPosition, { align: 'center' });
-        currentX += colWidths.empresas;
+        // // Empresas
+        // pdf.text(String(row.numEmpresas > 0 ? row.numEmpresas : '-'), currentX + colWidths.empresas / 2, yPosition, { align: 'center' });
+        // currentX += colWidths.empresas;
 
-        // Líneas
-        pdf.text(String(row.numLineas > 0 ? row.numLineas : '-'), currentX + colWidths.lineas / 2, yPosition, { align: 'center' });
-        currentX += colWidths.lineas;
+        // // Líneas
+        // pdf.text(String(row.numLineas > 0 ? row.numLineas : '-'), currentX + colWidths.lineas / 2, yPosition, { align: 'center' });
+        // currentX += colWidths.lineas;
 
         // Penetración
         const penetracion = row.penetracion !== null ? row.penetracion.toFixed(1) : '-';
@@ -1085,14 +1085,14 @@ export default function App(){
                   Buses únicos {sortColumn === 'buses' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'buses' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
-                <th className="sortable" onClick={() => handleSort('empresas')} title="Clic para ordenar">
+                {/* <th className="sortable" onClick={() => handleSort('empresas')} title="Clic para ordenar">
                   Empresas {sortColumn === 'empresas' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'empresas' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('lineas')} title="Clic para ordenar">
                   Líneas {sortColumn === 'lineas' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'lineas' && <span style={{opacity: 0.3}}> ↕</span>}
-                </th>
+                </th> */}
                 <th className="sortable" onClick={() => handleSort('penetracion')} title="Clic para ordenar">
                   Penetración (%) {sortColumn === 'penetracion' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'penetracion' && <span style={{opacity: 0.3}}> ↕</span>}
@@ -1102,7 +1102,7 @@ export default function App(){
             <tbody>
               {filteredAndSortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
+                  <td colSpan="7" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
                     No se encontraron resultados
                   </td>
                 </tr>
@@ -1121,7 +1121,7 @@ export default function App(){
                   <td>{r.pasajeros.toLocaleString()}</td>
                     <td>{r.poblacion > 0 ? r.poblacion.toLocaleString() : '-'}</td>
                   <td>{r.buses.toLocaleString()}</td>
-                    <td 
+                    {/* <td 
                       className="nowrap" 
                       style={{cursor: r.numEmpresas > 0 ? 'help' : 'default'}}
                       title={r.empresasTooltip}
@@ -1134,7 +1134,7 @@ export default function App(){
                       title={r.lineasTooltip}
                     >
                       {r.numLineas > 0 ? r.numLineas : '-'}
-                    </td>
+                    </td> */}
                   <td>{r.penetracion !== null ? r.penetracion.toFixed(1) : '-'}</td>
                 </tr>
                 ))
