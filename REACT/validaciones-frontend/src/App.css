@@ -38,6 +38,7 @@ body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; back
 
 .content { display:flex; gap:12px; }
 .map-area { flex:1; padding:6px; }
+.map-area .responsive-map { height: 620px; width: 100%; }
 .sidebar { width:320px; display:flex; flex-direction:column; gap:12px; }
 
 .legend { padding:10px; }
@@ -196,11 +197,226 @@ body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; back
   white-space: nowrap;
 }
 
-/* Responsive footer */
+/* Responsive Design */
+
+/* Tablet y pantallas medianas */
+@media (max-width: 1024px) {
+  .app-container {
+    padding: 12px;
+  }
+  
+  .sidebar {
+    width: 280px;
+  }
+  
+  .content {
+    gap: 10px;
+  }
+  
+  .map-area .responsive-map {
+    height: 550px;
+  }
+}
+
+/* Tablets en modo vertical */
+@media (max-width: 768px) and (min-width: 641px) {
+  .controls {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .controls .btn {
+    grid-column: 1 / -1;
+  }
+  
+  .control-checkbox {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Móvil y pantallas pequeñas */
 @media (max-width: 768px) {
+  .app-container {
+    padding: 8px;
+  }
+  
+  /* Topbar responsive */
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .topbar h2 {
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .controls select {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+  }
+  
+  .controls .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  
+  .control-checkbox {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 4px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  
+  .control-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  
+  .control-criterio {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 4px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  
+  .control-criterio label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+  }
+  
+  .control-criterio select {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    background: white;
+  }
+  
+  /* Layout principal - cambiar a columna en móvil */
+  .content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .map-area {
+    width: 100%;
+    order: 1;
+    padding: 4px;
+  }
+  
+  .map-area .responsive-map,
+  .map-area .leaflet-container {
+    height: 60vh !important;
+    min-height: 450px;
+    max-height: 600px;
+    width: 100%;
+  }
+  
+  .map-placeholder {
+    height: 60vh;
+    min-height: 450px;
+    max-height: 600px;
+  }
+  
+  .sidebar {
+    width: 100%;
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  /* En móviles muy pequeños, sidebar en una sola columna */
+  @media (max-width: 640px) {
+    .sidebar {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* Leyenda más compacta en móvil */
+  .legend {
+    padding: 8px;
+  }
+  
+  .legend-row {
+    margin-top: 6px;
+  }
+  
+  .legend-label {
+    font-size: 12px;
+  }
+  
+  /* Totales más compactos */
+  .totals {
+    padding: 10px;
+  }
+  
+  .totals h3 {
+    font-size: 16px;
+  }
+  
+  /* Tabla responsive - aparece después del mapa y sidebar */
+  .table-section {
+    order: 3;
+    padding: 10px;
+    margin-top: 10px;
+    overflow-x: auto;
+  }
+  
+  .table-wrapper {
+    max-height: 300px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .data-table {
+    font-size: 12px;
+    min-width: 800px; /* Forzar scroll horizontal si es necesario */
+  }
+  
+  .data-table thead th,
+  .data-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+  
+  .nowrap {
+    max-width: 150px;
+  }
+  
+  /* Footer responsive */
   .app-footer {
     flex-direction: column;
     gap: 10px;
+    padding: 10px;
+    order: 4;
   }
   
   .footer-left,
@@ -216,5 +432,96 @@ body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; back
   .footer-copyright,
   .footer-dev {
     font-size: 10px;
+  }
+}
+
+/* Pantallas pequeñas (menos de 640px) */
+@media (max-width: 640px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+  
+  .controls .btn {
+    grid-column: 1;
+  }
+}
+
+/* Pantallas muy pequeñas (menos de 480px) */
+@media (max-width: 480px) {
+  .app-container {
+    padding: 6px;
+  }
+  
+  .topbar {
+    padding: 10px;
+  }
+  
+  .topbar h2 {
+    font-size: 16px;
+  }
+  
+  .controls {
+    gap: 8px;
+  }
+  
+  .controls select,
+  .controls .btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+  
+  .map-area .responsive-map,
+  .map-area .leaflet-container {
+    height: 50vh !important;
+    min-height: 400px;
+    max-height: 500px;
+  }
+  
+  .map-placeholder {
+    height: 50vh;
+    min-height: 400px;
+    max-height: 500px;
+    font-size: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .sidebar {
+    grid-template-columns: 1fr;
+  }
+  
+  .legend {
+    padding: 8px;
+  }
+  
+  .legend-row {
+    margin-top: 6px;
+  }
+  
+  .legend-label {
+    font-size: 11px;
+  }
+  
+  .data-table {
+    font-size: 11px;
+    min-width: 700px;
+  }
+  
+  .data-table thead th,
+  .data-table td {
+    padding: 6px 4px;
+    font-size: 10px;
+  }
+  
+  .card {
+    padding: 10px;
+  }
+  
+  .totals h3 {
+    font-size: 14px;
+  }
+  
+  .totals div {
+    font-size: 12px;
   }
 }

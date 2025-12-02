@@ -943,7 +943,7 @@ export default function App(){
       <main className="content">
         <section className="map-area card">
           {geojson ? (
-            <MapContainer center={[-25.3, -57.6]} zoom={11} style={{height:'620px', borderRadius:8}}>
+            <MapContainer center={[-25.3, -57.6]} zoom={11} className="responsive-map" style={{borderRadius:8}}>
               <TileLayer 
                 url={mapLayers[mapLayer].url}
                 attribution={mapLayers[mapLayer].attribution}
