@@ -1021,7 +1021,15 @@ export default function App(){
             <img 
               src={getStaticUrl('/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png')}
               alt="Ministerio de Obras Públicas y Comunicaciones" 
-              className="footer-logo-ministerio"
+              style={{
+                maxWidth: '100%',
+                width: 'auto',
+                maxHeight: '120px',
+                height: 'auto',
+                display: 'block',
+                margin: '0 auto 15px auto',
+                objectFit: 'contain'
+              }}
             />
             <img 
               src={getStaticUrl('/Logo_CIDSA2.jpg')}
