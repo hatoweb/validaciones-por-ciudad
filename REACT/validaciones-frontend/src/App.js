@@ -171,7 +171,7 @@ function Legend({min, max, criterio}){
       color: getTurquoiseColor(intensity)
     });
   }
-  const title = criterio === 'validaciones' ? 'Validaciones' : criterio === 'porcentaje' ? 'Penetración (%)' : criterio === 'buses' ? 'Buses' : criterio === 'empresas' ? 'Empresas' : 'Líneas';
+  const title = criterio === 'validaciones' ? 'Validaciones' : criterio === 'porcentaje' ? 'Tasa de uso' : criterio === 'buses' ? 'Buses' : criterio === 'empresas' ? 'Empresas' : 'Líneas';
   return (
     <div className="legend card">
       <strong>{title}</strong>
@@ -391,11 +391,11 @@ export default function App(){
         <b>${nombre}</b><br/>
         <b>📊 DEMANDA:</b><br>
         <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
-        <b>Pasajeros únicos:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
+        <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
         ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
-        ${false ? `
         <b>🚌 OFERTA:</b><br>
         <b>Buses únicos:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
+        ${false ? `
         <b>Empresas:</b> ${p.num_empresas || 0}<br/>
         <b>Líneas:</b> ${p.num_lineas || 0}
         ` : ''}
@@ -543,6 +543,7 @@ export default function App(){
         name: getNameFromProps(p),
         validaciones: Number(p.cantidad_validaciones || 0),
         pasajeros: Number(pasajerosUnicos),
+        promedioPasajerosDiario: Number(p.promedio_pasajeros_diario || 0),
         buses: Number(busesUnicos),
         empresas: empresasStr,
         lineas: lineasStr,
@@ -682,7 +683,7 @@ export default function App(){
       yPosition += 6;
       pdf.text(`Área: ${tipoArea}`, margin, yPosition);
       yPosition += 6;
-      pdf.text(`Criterio: ${criterio === 'validaciones' ? 'Validaciones' : criterio === 'porcentaje' ? 'Penetración (%)' : criterio === 'buses' ? 'Buses' : criterio === 'empresas' ? 'Empresas' : 'Líneas'}`, margin, yPosition);
+      pdf.text(`Criterio: ${criterio === 'validaciones' ? 'Validaciones' : criterio === 'porcentaje' ? 'Tasa de uso' : criterio === 'buses' ? 'Buses' : criterio === 'empresas' ? 'Empresas' : 'Líneas'}`, margin, yPosition);
       yPosition += 6;
 
       // Totales
@@ -692,7 +693,7 @@ export default function App(){
       pdf.setFont(undefined, 'normal');
       pdf.text(`Validaciones: ${typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}`, margin + 5, yPosition);
       yPosition += 5;
-      pdf.text(`Pasajeros únicos: ${typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}`, margin + 5, yPosition);
+      pdf.text(`Pasajeros: ${typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}`, margin + 5, yPosition);
       yPosition += 5;
       pdf.text(`Buses únicos: ${typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}`, margin + 5, yPosition);
       yPosition += 10;
@@ -706,14 +707,15 @@ export default function App(){
       // Calcular anchos de columnas
       const colWidths = {
         num: 8,
-        nombre: 45,
-        validaciones: 22,
-        pasajeros: 22,
-        poblacion: 20,
-        buses: 20,
+        nombre: 42,
+        validaciones: 20,
+        pasajeros: 20,
+        promedioPasajerosDiario: 18,
+        poblacion: 18,
+        buses: 18,
         empresas: 18,
         lineas: 18,
-        penetracion: 22
+        penetracion: 20
       };
       const startX = margin;
       let currentX = startX;
@@ -738,6 +740,10 @@ export default function App(){
       pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, yPosition - 1, { align: 'center' });
       currentX += colWidths.pasajeros;
 
+      pdf.rect(currentX, yPosition - 5, colWidths.promedioPasajerosDiario, 7, 'F');
+      pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, yPosition - 1, { align: 'center' });
+      currentX += colWidths.promedioPasajerosDiario;
+
       pdf.rect(currentX, yPosition - 5, colWidths.poblacion, 7, 'F');
       pdf.text('Población', currentX + colWidths.poblacion / 2, yPosition - 1, { align: 'center' });
       currentX += colWidths.poblacion;
@@ -755,7 +761,7 @@ export default function App(){
       // currentX += colWidths.lineas;
 
       pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
-      pdf.text('Penet. (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
+      pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
 
       yPosition += 5;
       pdf.setTextColor(0, 0, 0);
@@ -787,6 +793,9 @@ export default function App(){
           pdf.rect(currentX, yPosition - 5, colWidths.pasajeros, 7, 'F');
           pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, yPosition - 1, { align: 'center' });
           currentX += colWidths.pasajeros;
+          pdf.rect(currentX, yPosition - 5, colWidths.promedioPasajerosDiario, 7, 'F');
+          pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, yPosition - 1, { align: 'center' });
+          currentX += colWidths.promedioPasajerosDiario;
           pdf.rect(currentX, yPosition - 5, colWidths.poblacion, 7, 'F');
           pdf.text('Población', currentX + colWidths.poblacion / 2, yPosition - 1, { align: 'center' });
           currentX += colWidths.poblacion;
@@ -800,7 +809,7 @@ export default function App(){
           // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
           // currentX += colWidths.lineas;
           pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
-          pdf.text('Penet. (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
+          pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
           yPosition += 5;
           pdf.setTextColor(0, 0, 0);
           pdf.setFont(undefined, 'normal');
@@ -832,6 +841,11 @@ export default function App(){
         pdf.text(row.pasajeros.toLocaleString(), currentX + colWidths.pasajeros / 2, yPosition, { align: 'right' });
         currentX += colWidths.pasajeros;
 
+        // Promedio diario pasajeros
+        const promedioPasajeros = row.promedioPasajerosDiario > 0 ? row.promedioPasajerosDiario.toFixed(1) : '-';
+        pdf.text(promedioPasajeros, currentX + colWidths.promedioPasajerosDiario / 2, yPosition, { align: 'right' });
+        currentX += colWidths.promedioPasajerosDiario;
+
         // Población
         const poblacion = row.poblacion > 0 ? row.poblacion.toLocaleString() : '-';
         pdf.text(poblacion, currentX + colWidths.poblacion / 2, yPosition, { align: 'right' });
@@ -849,7 +863,7 @@ export default function App(){
         // pdf.text(String(row.numLineas > 0 ? row.numLineas : '-'), currentX + colWidths.lineas / 2, yPosition, { align: 'center' });
         // currentX += colWidths.lineas;
 
-        // Penetración
+        // Tasa de uso
         const penetracion = row.penetracion !== null ? row.penetracion.toFixed(1) : '-';
         pdf.text(penetracion, currentX + colWidths.penetracion / 2, yPosition, { align: 'right' });
 
@@ -925,7 +939,7 @@ export default function App(){
             Criterio:
             <select value={criterio} onChange={e=>setCriterio(e.target.value)}>
               <option value="validaciones">Validaciones</option>
-              <option value="porcentaje">Penetración (%)</option>
+              <option value="porcentaje">Tasa de uso</option>
               <option value="buses">Buses</option>
               {/* <option value="empresas">Empresas</option>
               <option value="lineas">Líneas</option> */}
@@ -969,7 +983,7 @@ export default function App(){
           <div className="card totals">
             <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
-            <div><b>Pasajeros únicos:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}</div>
+            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}</div>
             <div><b>Buses únicos:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
@@ -1074,8 +1088,12 @@ export default function App(){
                   {sortColumn !== 'validaciones' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('pasajeros')} title="Clic para ordenar">
-                  Pasajeros únicos {sortColumn === 'pasajeros' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  Pasajeros {sortColumn === 'pasajeros' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'pasajeros' && <span style={{opacity: 0.3}}> ↕</span>}
+                </th>
+                <th className="sortable" onClick={() => handleSort('promedioPasajerosDiario')} title="Clic para ordenar">
+                  Prom. diario {sortColumn === 'promedioPasajerosDiario' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  {sortColumn !== 'promedioPasajerosDiario' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('poblacion')} title="Clic para ordenar">
                   Población {sortColumn === 'poblacion' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
@@ -1094,7 +1112,7 @@ export default function App(){
                   {sortColumn !== 'lineas' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th> */}
                 <th className="sortable" onClick={() => handleSort('penetracion')} title="Clic para ordenar">
-                  Penetración (%) {sortColumn === 'penetracion' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  Tasa de uso {sortColumn === 'penetracion' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'penetracion' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
               </tr>
@@ -1102,7 +1120,7 @@ export default function App(){
             <tbody>
               {filteredAndSortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
+                  <td colSpan="8" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
                     No se encontraron resultados
                   </td>
                 </tr>
@@ -1119,6 +1137,7 @@ export default function App(){
                   </td>
                   <td>{r.validaciones.toLocaleString()}</td>
                   <td>{r.pasajeros.toLocaleString()}</td>
+                  <td>{r.promedioPasajerosDiario > 0 ? r.promedioPasajerosDiario.toFixed(1) : '-'}</td>
                     <td>{r.poblacion > 0 ? r.poblacion.toLocaleString() : '-'}</td>
                   <td>{r.buses.toLocaleString()}</td>
                     {/* <td 
@@ -1166,11 +1185,18 @@ export default function App(){
           </div>
         </div>
         <div className="footer-right">
-          <img 
-            src={getStaticUrl('/Logo_CIDSA2.jpg')}
-            alt="CIDSA Logo" 
-            className="footer-logo-cidsa"
-          />
+          <div className="footer-logos-stacked">
+            <img 
+              src={getStaticUrl('/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png')}
+              alt="Ministerio de Obras Públicas y Comunicaciones" 
+              className="footer-logo-ministerio"
+            />
+            <img 
+              src={getStaticUrl('/Logo_CIDSA2.jpg')}
+              alt="CIDSA Logo" 
+              className="footer-logo-cidsa"
+            />
+          </div>
         </div>
       </footer>
     </div>
