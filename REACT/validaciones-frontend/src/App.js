@@ -1019,6 +1019,11 @@ export default function App(){
           </div>
           <div className="card" style={{textAlign: 'center', padding: '15px'}}>
             <img 
+              src={getStaticUrl('/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png')}
+              alt="Ministerio de Obras Públicas y Comunicaciones" 
+              className="footer-logo-ministerio"
+            />
+            <img 
               src={getStaticUrl('/Logo_CIDSA2.jpg')}
               alt="CIDSA Logo" 
               style={{
@@ -1186,11 +1191,6 @@ export default function App(){
         </div>
         <div className="footer-right">
           <div className="footer-logos-stacked">
-            <img 
-              src={getStaticUrl('/MINISTERIO-DE-OBRAS-PUBLICAS-Curvas-01-transparente.png')}
-              alt="Ministerio de Obras Públicas y Comunicaciones" 
-              className="footer-logo-ministerio"
-            />
             <img 
               src={getStaticUrl('/Logo_CIDSA2.jpg')}
               alt="CIDSA Logo" 
