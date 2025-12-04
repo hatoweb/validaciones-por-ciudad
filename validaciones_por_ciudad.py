@@ -146,7 +146,6 @@ def cargar_vias():
         print(f"Columnas disponibles: {gdf_combinado.columns.tolist()}")
         
         col_nombre = 'NOMBRE'
-        
         if col_nombre not in gdf_combinado.columns:
             col_nombre = gdf_combinado.columns[0] if len(gdf_combinado.columns) > 0 else None
         
@@ -173,14 +172,38 @@ def cargar_poblacion_asuncion():
         print(f"  ✓ Datos de población cargados para {len(poblacion_data)} barrios de Asunción")
         return poblacion_data
     except Exception as e:
-        print(f"  ✗ Error al cargar datos de población: {str(e)}")
+        print(f"  ✗ Error al cargar datos de población de Asunción: {str(e)}")
+        return {}
+
+def cargar_poblacion_central():
+    """Carga los datos de población de los barrios/localidades del departamento Central desde el archivo GeoJSON"""
+    poblacion_path = os.path.join('CIUDADES', 'CENTRAL_POBLACION', 'CentralPoblacion.geojson')
+    poblacion_data = {}
+    
+    try:
+        with open(poblacion_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        for feature in data['features']:
+            nombre_barrio = feature['properties']['BARLO_DESC'].upper()
+            poblacion = feature['properties']['PobTot']
+            poblacion_data[nombre_barrio] = poblacion
+        
+        print(f"  ✓ Datos de población cargados para {len(poblacion_data)} barrios/localidades de Central")
+        return poblacion_data
+    except Exception as e:
+        print(f"  ✗ Error al cargar datos de población de Central: {str(e)}")
         return {}
 
 def cargar_barrios():
     """Carga los shapefiles de barrios de Central, Asunción y Presidente Hayes"""
     
-    # Cargar datos de población
-    poblacion_data = cargar_poblacion_asuncion()
+    # Cargar datos de población de Asunción y Central
+    poblacion_asuncion = cargar_poblacion_asuncion()
+    poblacion_central = cargar_poblacion_central()
+    
+    # Combinar ambos diccionarios de población
+    poblacion_data = {**poblacion_asuncion, **poblacion_central}
     
     # Definir rutas de los shapefiles de barrios
     rutas_barrios = [
@@ -205,8 +228,8 @@ def cargar_barrios():
                 if gdf.crs != 'EPSG:4326':
                     gdf = gdf.to_crs('EPSG:4326')
                 
-                # Agregar datos de población si es Asunción
-                if 'ASUNCION' in ruta_completa.upper() and 'BARLO_DESC' in gdf.columns:
+                # Agregar datos de población si es Asunción o Central
+                if ('ASUNCION' in ruta_completa.upper() or 'CENTRAL' in ruta_completa.upper()) and 'BARLO_DESC' in gdf.columns and poblacion_data:
                     print(f"\nMapeando datos de población para {ruta_completa}")
                     print(f"Barrios en el shapefile: {gdf['BARLO_DESC'].tolist()}")
                     print(f"Barrios en datos de población: {list(poblacion_data.keys())}")
@@ -436,30 +459,30 @@ def obtener_feriados(mes, anio):
             fecha_inicio = f"{anio}-{mes:02d}-01"
             fecha_fin = f"{anio}-{mes + 1:02d}-01"
         
-        conn_rutas = psycopg2.connect(**DB_RUTAS_CONFIG)
-        query_feriados = """
-        SELECT fecha 
-        FROM public.feriados
-        WHERE fecha >= %s AND fecha < %s
-        ORDER BY fecha ASC
-        """
-        df_feriados = pd.read_sql_query(query_feriados, conn_rutas, params=(fecha_inicio, fecha_fin))
-        conn_rutas.close()
-        
-        # Convertir fechas a formato YYYY-MM-DD
-        feriados_list = []
-        for _, row in df_feriados.iterrows():
-            fecha = row['fecha']
-            if pd.notna(fecha):
-                # Si es datetime, convertir a date
-                if hasattr(fecha, 'date'):
-                    fecha = fecha.date()
-                elif isinstance(fecha, str):
-                    fecha = fecha.split()[0]  # Tomar solo la parte de la fecha
-                feriados_list.append(str(fecha))
-        
-        print(f"✓ Feriados obtenidos para {mes}/{anio}: {len(feriados_list)} fechas")
-        return feriados_list
+            conn_rutas = psycopg2.connect(**DB_RUTAS_CONFIG)
+            query_feriados = """
+            SELECT fecha 
+            FROM public.feriados
+            WHERE fecha >= %s AND fecha < %s
+            ORDER BY fecha ASC
+            """
+            df_feriados = pd.read_sql_query(query_feriados, conn_rutas, params=(fecha_inicio, fecha_fin))
+            conn_rutas.close()
+            
+            # Convertir fechas a formato YYYY-MM-DD
+            feriados_list = []
+            for _, row in df_feriados.iterrows():
+                fecha = row['fecha']
+                if pd.notna(fecha):
+                    # Si es datetime, convertir a date
+                    if hasattr(fecha, 'date'):
+                        fecha = fecha.date()
+                    elif isinstance(fecha, str):
+                        fecha = fecha.split()[0]  # Tomar solo la parte de la fecha
+                    feriados_list.append(str(fecha))
+            
+            print(f"✓ Feriados obtenidos para {mes}/{anio}: {len(feriados_list)} fechas")
+            return feriados_list
     except Exception as e:
         print(f"⚠️ Error al obtener feriados: {e}")
         import traceback
@@ -2095,7 +2118,7 @@ def api_validaciones():
                     # Lanzar excepción para que sea capturada por el bloque except general
                     raise Exception('Error al obtener validaciones de la base de datos. Verifique la conexión y el espacio disponible en PostgreSQL.')
                 if len(df_validaciones) == 0:
-                    return jsonify({'error': 'No se encontraron validaciones para el período seleccionado'}), 404
+                    raise Exception('No se encontraron validaciones para el período seleccionado')
             except psycopg2_errors.DiskFull as e:
                 # Error específico de espacio en disco
                 error_msg = f'Error: El servidor de base de datos se quedó sin espacio en disco. Por favor contacte al administrador del sistema. Detalles: {str(e)}'
@@ -2156,11 +2179,11 @@ def api_validaciones():
                 else:
                     # fallback si no se pueden obtener los datos
                     totals_global = {
-                        'validaciones': int(gdf_resultado['cantidad_validaciones'].sum()),
-                        'unique_passengers': None,
-                        'unique_buses': None,
-                        'desde_cache': True
-                    }
+                    'validaciones': int(gdf_resultado['cantidad_validaciones'].sum()),
+                    'unique_passengers': None,
+                    'unique_buses': None,
+                    'desde_cache': True
+                }
 
         # Opcional: simplificar geometría para reducir payload (ajusta tolerance)
         try:
