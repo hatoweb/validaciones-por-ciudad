@@ -175,35 +175,43 @@ def cargar_poblacion_asuncion():
         print(f"  ✗ Error al cargar datos de población de Asunción: {str(e)}")
         return {}
 
-def cargar_poblacion_central():
-    """Carga los datos de población de los barrios/localidades del departamento Central desde el archivo GeoJSON"""
-    poblacion_path = os.path.join('CIUDADES', 'CENTRAL_POBLACION', 'CentralPoblacion.geojson')
-    poblacion_data = {}
+def cargar_poblacion_central_geodataframe():
+    """Carga los datos de población de Central como GeoDataFrame desde Central_Pob2.geojson
+    para hacer spatial join con el shapefile"""
+    poblacion_path = os.path.join('CIUDADES', 'CENTRAL_POBLACION', 'Central_Pob2.geojson')
     
     try:
-        with open(poblacion_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        for feature in data['features']:
-            nombre_barrio = feature['properties']['BARLO_DESC'].upper()
-            poblacion = feature['properties']['PobTot']
-            poblacion_data[nombre_barrio] = poblacion
-        
-        print(f"  ✓ Datos de población cargados para {len(poblacion_data)} barrios/localidades de Central")
-        return poblacion_data
+        # Intentar cargar Central_Pob2.geojson primero
+        if os.path.exists(poblacion_path):
+            gdf_poblacion = gpd.read_file(poblacion_path)
+            
+            # Asegurar que está en WGS84 (EPSG:4326)
+            if gdf_poblacion.crs != 'EPSG:4326':
+                gdf_poblacion = gdf_poblacion.to_crs('EPSG:4326')
+            
+            # Normalizar nombres de columnas de población
+            if 'Total' in gdf_poblacion.columns:
+                gdf_poblacion['POBLACION'] = gdf_poblacion['Total']
+            elif 'PobTot' in gdf_poblacion.columns:
+                gdf_poblacion['POBLACION'] = gdf_poblacion['PobTot']
+            
+            print(f"  ✓ GeoDataFrame de población cargado: {len(gdf_poblacion)} barrios/localidades desde Central_Pob2.geojson")
+            return gdf_poblacion
+        else:
+            print(f"  ⚠️ Archivo Central_Pob2.geojson no encontrado en {poblacion_path}")
+            return None
     except Exception as e:
-        print(f"  ✗ Error al cargar datos de población de Central: {str(e)}")
-        return {}
+        print(f"  ✗ Error al cargar datos de población de Central como GeoDataFrame: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return None
 
 def cargar_barrios():
     """Carga los shapefiles de barrios de Central, Asunción y Presidente Hayes"""
     
-    # Cargar datos de población de Asunción y Central
-    poblacion_asuncion = cargar_poblacion_asuncion()
-    poblacion_central = cargar_poblacion_central()
-    
-    # Combinar ambos diccionarios de población
-    poblacion_data = {**poblacion_asuncion, **poblacion_central}
+    # Cargar datos de población
+    poblacion_asuncion = cargar_poblacion_asuncion()  # Diccionario simple por nombre
+    gdf_poblacion_central = cargar_poblacion_central_geodataframe()  # GeoDataFrame para spatial join
     
     # Definir rutas de los shapefiles de barrios
     rutas_barrios = [
@@ -229,12 +237,68 @@ def cargar_barrios():
                     gdf = gdf.to_crs('EPSG:4326')
                 
                 # Agregar datos de población si es Asunción o Central
-                if ('ASUNCION' in ruta_completa.upper() or 'CENTRAL' in ruta_completa.upper()) and 'BARLO_DESC' in gdf.columns and poblacion_data:
+                if ('ASUNCION' in ruta_completa.upper() or 'CENTRAL' in ruta_completa.upper()) and 'BARLO_DESC' in gdf.columns:
                     print(f"\nMapeando datos de población para {ruta_completa}")
-                    print(f"Barrios en el shapefile: {gdf['BARLO_DESC'].tolist()}")
-                    print(f"Barrios en datos de población: {list(poblacion_data.keys())}")
-                    gdf['POBLACION'] = gdf['BARLO_DESC'].str.upper().map(poblacion_data)
-                    print(f"Barrios con población asignada: {gdf[gdf['POBLACION'].notna()]['BARLO_DESC'].tolist()}")
+                    
+                    if 'CENTRAL' in ruta_completa.upper() and gdf_poblacion_central is not None:
+                        # Para Central: hacer macheo por CLAVE_BAR primero, luego spatial join
+                        print(f"  Macheando población para Central con {len(gdf_poblacion_central)} barrios del GeoJSON...")
+                        
+                        # Crear diccionario por CLAVE_BAR para macheo rápido
+                        poblacion_por_clave_bar = {}
+                        if 'CLAVE_BAR' in gdf_poblacion_central.columns:
+                            for idx, row in gdf_poblacion_central.iterrows():
+                                clave_bar = str(row.get('CLAVE_BAR', '')).strip()
+                                if clave_bar and 'POBLACION' in row:
+                                    poblacion_por_clave_bar[clave_bar] = row['POBLACION']
+                        
+                        # Inicializar columna POBLACION
+                        gdf['POBLACION'] = None
+                        
+                        # Estrategia 1: Machear por CLAVE_BAR si ambos lo tienen
+                        if 'CLAVE_BAR' in gdf.columns and poblacion_por_clave_bar:
+                            print(f"  Intentando macheo por CLAVE_BAR...")
+                            gdf['POBLACION'] = gdf['CLAVE_BAR'].astype(str).str.strip().map(poblacion_por_clave_bar)
+                            macheados_por_clave = gdf['POBLACION'].notna().sum()
+                            print(f"  ✓ Macheados por CLAVE_BAR: {macheados_por_clave} de {len(gdf)}")
+                        
+                        # Estrategia 2: Para los que no tienen match, hacer spatial join
+                        barrios_sin_poblacion = gdf[gdf['POBLACION'].isna()].copy()
+                        if len(barrios_sin_poblacion) > 0:
+                            print(f"  Haciendo spatial join para {len(barrios_sin_poblacion)} barrios restantes...")
+                            
+                            # Spatial join solo para los que no tienen población
+                            # GeoPandas preserva el índice izquierdo
+                            gdf_con_poblacion = gpd.sjoin(
+                                barrios_sin_poblacion,
+                                gdf_poblacion_central[['POBLACION', 'CLAVE_BAR', 'geometry']],
+                                how='left',
+                                predicate='intersects'
+                            )
+                            
+                            # Si hay múltiples matches para un mismo barrio, tomar el primero
+                            # Agrupar por índice original (que preserva el join) y tomar el primer match
+                            if len(gdf_con_poblacion) > 0:
+                                gdf_con_poblacion_agrupado = gdf_con_poblacion.groupby(gdf_con_poblacion.index).first()
+                                
+                                # Asignar población usando el índice preservado del spatial join
+                                for idx in gdf_con_poblacion_agrupado.index:
+                                    poblacion = gdf_con_poblacion_agrupado.loc[idx, 'POBLACION']
+                                    if pd.notna(poblacion):
+                                        gdf.loc[idx, 'POBLACION'] = poblacion
+                        
+                        barrios_con_poblacion = gdf[gdf['POBLACION'].notna()]
+                        print(f"  ✓ Total barrios con población asignada: {len(barrios_con_poblacion)} de {len(gdf)}")
+                        if len(barrios_con_poblacion) > 0:
+                            print(f"  Ejemplos: {barrios_con_poblacion[['BARLO_DESC', 'POBLACION']].head(5).to_dict('records')}")
+                    
+                    elif 'ASUNCION' in ruta_completa.upper():
+                        # Para Asunción: usar mapeo por nombre (método tradicional)
+                        gdf['POBLACION'] = gdf['BARLO_DESC'].str.upper().map(poblacion_asuncion)
+                        barrios_con_poblacion = gdf[gdf['POBLACION'].notna()]
+                        print(f"  ✓ Barrios con población asignada: {len(barrios_con_poblacion)} de {len(gdf)}")
+                    else:
+                        print(f"  ⚠️ No se pudo asignar población (archivo de población no disponible)")
                 
                 gdfs_barrios.append(gdf)
                 print(f"✓ Cargado: {ruta_completa} ({len(gdf)} barrios)")
