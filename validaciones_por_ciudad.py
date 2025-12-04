@@ -336,7 +336,49 @@ def cargar_barrios():
     
     # Crear columna combinada: "Barrio - Distrito"
     if col_distrito and col_distrito in gdf_combinado.columns:
+        # Primero crear nombre básico: "Barrio - Distrito"
         gdf_combinado['barrio_completo'] = gdf_combinado[col_nombre].astype(str) + ' - ' + gdf_combinado[col_distrito].astype(str)
+        
+        # Identificar barrios con el mismo nombre en el mismo distrito pero diferentes CLAVE_BAR
+        # Si hay duplicados, agregar CLAVE_BAR o código de área para diferenciarlos
+        if 'CLAVE_BAR' in gdf_combinado.columns:
+            # Contar cuántos barrios tienen el mismo nombre en el mismo distrito
+            conteo_nombres = gdf_combinado.groupby('barrio_completo').size()
+            nombres_duplicados = conteo_nombres[conteo_nombres > 1].index.tolist()
+            
+            if len(nombres_duplicados) > 0:
+                print(f"  Detectados {len(nombres_duplicados)} nombres de barrios duplicados en el mismo distrito. Diferenciando con CLAVE_BAR...")
+                
+                # Para cada barrio con nombre duplicado, verificar si tienen diferentes CLAVE_BAR
+                for nombre_dup in nombres_duplicados:
+                    grupo = gdf_combinado[gdf_combinado['barrio_completo'] == nombre_dup]
+                    claves_bar_unicas = grupo['CLAVE_BAR'].nunique()
+                    
+                    # Si hay diferentes CLAVE_BAR, agregar diferenciador al nombre
+                    if claves_bar_unicas > 1:
+                        # Usar columna AREA si está disponible, sino usar últimos dígitos de CLAVE_BAR
+                        usar_area = 'AREA' in gdf_combinado.columns
+                        
+                        for idx in grupo.index:
+                            nombre_original = grupo.loc[idx, col_nombre]
+                            distrito = grupo.loc[idx, col_distrito]
+                            
+                            if usar_area and pd.notna(grupo.loc[idx, 'AREA']):
+                                # Usar AREA para diferenciar
+                                codigo_area = str(grupo.loc[idx, 'AREA']).strip()
+                                gdf_combinado.loc[idx, 'barrio_completo'] = f"{nombre_original} (AREA {codigo_area}) - {distrito}"
+                            else:
+                                # Usar últimos 2 dígitos de CLAVE_BAR
+                                clave_bar = str(grupo.loc[idx, 'CLAVE_BAR']).strip()
+                                if clave_bar and len(clave_bar) >= 2:
+                                    codigo_area = clave_bar[-2:]
+                                    gdf_combinado.loc[idx, 'barrio_completo'] = f"{nombre_original} ({codigo_area}) - {distrito}"
+                                else:
+                                    # Si no hay AREA ni CLAVE_BAR válido, usar el índice
+                                    gdf_combinado.loc[idx, 'barrio_completo'] = f"{nombre_original} (#{idx}) - {distrito}"
+                        
+                        print(f"    ✓ Diferenciados {claves_bar_unicas} barrios con nombre '{nombre_dup}'")
+        
         col_nombre_completo = 'barrio_completo'
         print(f"Usando columna '{col_nombre}' para nombres de barrios y '{col_distrito}' para distritos")
         print(f"Columna combinada creada: 'barrio_completo'")
@@ -2262,17 +2304,48 @@ def api_validaciones():
             print(f"Columnas disponibles: {gdf_send.columns.tolist()}")
             return jsonify({'error': f'Columna de nombre no encontrada en los datos: {col_nombre}'}), 500
         
-        # Agrupar áreas duplicadas por nombre (puede haber múltiples geometrías con el mismo nombre)
-        # Esto asegura que cada área tenga un solo registro con valores consolidados
+        # Agrupar áreas duplicadas usando CLAVE_BAR como identificador único si está disponible
+        # Esto evita consolidar barrios diferentes que solo comparten el mismo nombre
+        # Solo consolidar si tienen el mismo CLAVE_BAR o realmente son la misma entidad
+        tiene_clave_bar = 'CLAVE_BAR' in gdf_send.columns
+        
         if col_nombre in gdf_send.columns:
             print(f"Verificando áreas duplicadas antes de consolidar...")
-            duplicados = gdf_send.groupby(col_nombre).size()
-            duplicados = duplicados[duplicados > 1]
+            
+            # Determinar el criterio de agrupación
+            if tiene_clave_bar:
+                # Agrupar por CLAVE_BAR para identificar verdaderos duplicados
+                print(f"  Usando CLAVE_BAR como identificador único para consolidación")
+                criterio_agrupacion = 'CLAVE_BAR'
+                duplicados = gdf_send.groupby(criterio_agrupacion).size()
+                duplicados = duplicados[duplicados > 1]
+                print(f"  Encontrados {len(duplicados)} CLAVE_BAR con múltiples registros (serán consolidados)")
+                
+                # También verificar si hay barrios con el mismo nombre pero diferente CLAVE_BAR
+                duplicados_nombre = gdf_send.groupby(col_nombre).size()
+                duplicados_nombre = duplicados_nombre[duplicados_nombre > 1]
+                if len(duplicados_nombre) > 0:
+                    # Verificar cuántos tienen diferentes CLAVE_BAR
+                    barrios_mismo_nombre_diferente_clave = 0
+                    for nombre, grupo in gdf_send.groupby(col_nombre):
+                        if len(grupo) > 1:
+                            claves_bar_unicas = grupo['CLAVE_BAR'].nunique()
+                            if claves_bar_unicas > 1:
+                                barrios_mismo_nombre_diferente_clave += (claves_bar_unicas - 1)
+                    if barrios_mismo_nombre_diferente_clave > 0:
+                        print(f"  ℹ️ Se mantendrán {barrios_mismo_nombre_diferente_clave} barrios con mismo nombre pero diferentes CLAVE_BAR como entidades separadas")
+            else:
+                # Fallback: agrupar por nombre si no hay CLAVE_BAR
+                criterio_agrupacion = col_nombre
+                duplicados = gdf_send.groupby(criterio_agrupacion).size()
+                duplicados = duplicados[duplicados > 1]
+                print(f"  ⚠️ No se encontró CLAVE_BAR, usando nombre como criterio de consolidación")
+            
             if len(duplicados) > 0:
-                print(f"⚠️ Encontradas {len(duplicados)} áreas con múltiples geometrías. Consolidando...")
-                # Agrupar por nombre y consolidar valores
+                print(f"⚠️ Encontradas {len(duplicados)} áreas con múltiples registros. Consolidando por {criterio_agrupacion}...")
+                # Agrupar por criterio y consolidar valores
                 grupos_consolidados = []
-                for nombre, grupo in gdf_send.groupby(col_nombre):
+                for clave, grupo in gdf_send.groupby(criterio_agrupacion):
                     if len(grupo) == 1:
                         grupos_consolidados.append(grupo.iloc[0])
                     else:
