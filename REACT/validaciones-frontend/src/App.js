@@ -394,7 +394,7 @@ export default function App(){
         <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
         ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
-        <b>Buses únicos:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
+        <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
         ${false ? `
         <b>Empresas:</b> ${p.num_empresas || 0}<br/>
         <b>Líneas:</b> ${p.num_lineas || 0}
@@ -545,6 +545,7 @@ export default function App(){
         pasajeros: Number(pasajerosUnicos),
         promedioPasajerosDiario: Number(p.promedio_pasajeros_diario || 0),
         buses: Number(busesUnicos),
+        promedioBusesDiario: Number(p.promedio_buses_diario || 0),
         empresas: empresasStr,
         lineas: lineasStr,
         numEmpresas: numEmpresas,
@@ -634,12 +635,25 @@ export default function App(){
     }
   };
 
+  // Calcular promedio diario de pasajeros desde los datos
+  const promedioPasajerosDiarioTotal = useMemo(() => {
+    if (!geojson || !geojson.features || geojson.features.length === 0) return 0;
+    const promedios = geojson.features
+      .map(f => Number(f.properties?.promedio_pasajeros_diario || 0))
+      .filter(p => p > 0);
+    if (promedios.length === 0) return 0;
+    // Calcular el promedio de todos los promedios diarios
+    const suma = promedios.reduce((acc, val) => acc + val, 0);
+    return suma / promedios.length;
+  }, [geojson]);
+
   // Usar los totales únicos del backend
   const displayedTotals = {
     validaciones: totals?.validaciones ?? '-',
     pasajeros: totals?.pasajeros ?? '-',
     buses: totals?.buses ?? '-',
-    desde_cache: totals?.desde_cache ? 'Sí' : 'No'
+    desde_cache: totals?.desde_cache ? 'Sí' : 'No',
+    promedioPasajerosDiario: promedioPasajerosDiarioTotal
   };
 
   // Función para generar y descargar PDF
@@ -983,8 +997,8 @@ export default function App(){
           <div className="card totals">
             <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
-            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}</div>
-            <div><b>Buses únicos:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}</div>
+            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : ''}</div>
+            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
@@ -1116,6 +1130,10 @@ export default function App(){
                   Buses únicos {sortColumn === 'buses' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'buses' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
+                <th className="sortable" onClick={() => handleSort('promedioBusesDiario')} title="Clic para ordenar">
+                  Prom. diario (buses) {sortColumn === 'promedioBusesDiario' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  {sortColumn !== 'promedioBusesDiario' && <span style={{opacity: 0.3}}> ↕</span>}
+                </th>
                 {/* <th className="sortable" onClick={() => handleSort('empresas')} title="Clic para ordenar">
                   Empresas {sortColumn === 'empresas' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'empresas' && <span style={{opacity: 0.3}}> ↕</span>}
@@ -1133,7 +1151,7 @@ export default function App(){
             <tbody>
               {filteredAndSortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
+                  <td colSpan="9" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
                     No se encontraron resultados
                   </td>
                 </tr>
@@ -1153,6 +1171,7 @@ export default function App(){
                   <td>{r.promedioPasajerosDiario > 0 ? r.promedioPasajerosDiario.toFixed(1) : '-'}</td>
                     <td>{r.poblacion > 0 ? r.poblacion.toLocaleString() : '-'}</td>
                   <td>{r.buses.toLocaleString()}</td>
+                  <td>{r.promedioBusesDiario > 0 ? r.promedioBusesDiario.toFixed(1) : '-'}</td>
                     {/* <td 
                       className="nowrap" 
                       style={{cursor: r.numEmpresas > 0 ? 'help' : 'default'}}
