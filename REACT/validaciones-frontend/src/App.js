@@ -709,7 +709,7 @@ export default function App(){
       yPosition += 5;
       pdf.text(`Pasajeros: ${typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}`, margin + 5, yPosition);
       yPosition += 5;
-      pdf.text(`Buses únicos: ${typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}`, margin + 5, yPosition);
+      pdf.text(`Buses: ${typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}`, margin + 5, yPosition);
       yPosition += 10;
 
       // Encabezado de la tabla
@@ -865,7 +865,7 @@ export default function App(){
         pdf.text(poblacion, currentX + colWidths.poblacion / 2, yPosition, { align: 'right' });
         currentX += colWidths.poblacion;
 
-        // Buses únicos
+        // Buses
         pdf.text(row.buses.toLocaleString(), currentX + colWidths.buses / 2, yPosition, { align: 'right' });
         currentX += colWidths.buses;
 
@@ -1127,7 +1127,7 @@ export default function App(){
                   {sortColumn !== 'poblacion' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('buses')} title="Clic para ordenar">
-                  Buses únicos {sortColumn === 'buses' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  Buses {sortColumn === 'buses' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'buses' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('promedioBusesDiario')} title="Clic para ordenar">
