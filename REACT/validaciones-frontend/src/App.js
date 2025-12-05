@@ -219,6 +219,53 @@ export default function App(){
     }
   };
 
+  // Función para obtener mensajes de error amigables
+  const getErrorMessage = (err) => {
+    const status = err.response?.status;
+    
+    // Error 504 - Gateway Timeout
+    if (status === 504) {
+      return 'El servidor está tardando más de lo esperado en procesar la solicitud. Por favor, intenta nuevamente en unos momentos. Si el problema persiste, puede que haya muchos datos para procesar o el servidor esté ocupado.';
+    }
+    
+    // Error 503 - Service Unavailable
+    if (status === 503) {
+      return 'El servicio no está disponible temporalmente. Por favor, intenta nuevamente en unos momentos.';
+    }
+    
+    // Error 500 - Internal Server Error
+    if (status === 500) {
+      return 'Ocurrió un error en el servidor. Por favor, intenta nuevamente. Si el problema persiste, contacta al administrador del sistema.';
+    }
+    
+    // Error 404 - Not Found
+    if (status === 404) {
+      return 'No se encontró la información solicitada. Por favor, verifica los parámetros seleccionados e intenta nuevamente.';
+    }
+    
+    // Error de timeout (sin código de estado)
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.message?.includes('Timeout')) {
+      return 'La solicitud está tardando demasiado tiempo. Por favor, intenta nuevamente o verifica tu conexión a internet.';
+    }
+    
+    // Error de conexión
+    if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error') || err.message?.includes('Failed to fetch')) {
+      return 'No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e intenta nuevamente.';
+    }
+    
+    // Error del servidor con mensaje personalizado
+    if (err.response?.data?.error && typeof err.response.data.error === 'string') {
+      // Si el mensaje ya es amigable, usarlo directamente
+      const serverError = err.response.data.error;
+      if (!serverError.includes('status code') && !serverError.includes('Request failed')) {
+        return serverError;
+      }
+    }
+    
+    // Mensaje genérico para otros errores
+    return 'Ocurrió un error al obtener los datos. Por favor, intenta nuevamente. Si el problema persiste, contacta al administrador del sistema.';
+  };
+
   // Cargar franjas operativas al montar el componente
   useEffect(() => {
     const cargarFranjas = async () => {
@@ -239,7 +286,8 @@ export default function App(){
         }
       } catch (err) {
         console.error('Error al cargar franjas operativas:', err);
-        alert('Error al cargar franjas operativas: ' + (err.message || err));
+        const errorMessage = getErrorMessage(err);
+        alert('Error al cargar las franjas operativas: ' + errorMessage);
       }
     };
     cargarFranjas();
@@ -270,6 +318,7 @@ export default function App(){
   //     setLoading(false);
   //   }
   // };
+
   const fetchData = async () => {
     if (!idFranja) {
       alert('Por favor selecciona una franja operativa');
@@ -305,8 +354,8 @@ export default function App(){
       console.error('Error completo:', err);
       console.error('Response data:', err.response?.data);
       console.error('Response status:', err.response?.status);
-      const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Error desconocido';
-      alert('Error al obtener datos: ' + errorMessage);
+      const errorMessage = getErrorMessage(err);
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
