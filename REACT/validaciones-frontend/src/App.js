@@ -295,7 +295,9 @@ export default function App(){
           // Ensure we're using the unique counts from the backend
           pasajeros: res.data.totals.unique_passengers ?? res.data.totals.pasajeros,
           buses: res.data.totals.unique_buses ?? res.data.totals.buses,
-          dias_con_datos: res.data.totals.dias_con_datos ?? null
+          dias_con_datos: res.data.totals.dias_con_datos ?? null,
+          promedio_diario_pasajeros: res.data.totals.promedio_diario_pasajeros ?? null,
+          promedio_diario_buses: res.data.totals.promedio_diario_buses ?? null
         });
         setStats(res.data.stats || null);
       }
@@ -663,16 +665,28 @@ export default function App(){
     return getDaysInMonth(mes, anio);
   }, [totals, mes, anio]);
 
-  // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_con_datos
+  // Usar promedio diario calculado en el backend (suma de totales diarios / días)
+  // Si no está disponible, calcular como fallback
   const promedioPasajerosDiarioTotal = useMemo(() => {
+    // Priorizar el valor calculado en el backend
+    if (totals && totals.promedio_diario_pasajeros !== null && totals.promedio_diario_pasajeros !== undefined) {
+      return totals.promedio_diario_pasajeros;
+    }
+    // Fallback: calcular localmente si no está disponible
     if (!totals || !totals.pasajeros || typeof totals.pasajeros !== 'number') return 0;
     const dias = getDiasConDatos;
     if (dias === 0) return 0;
     return totals.pasajeros / dias;
   }, [totals, getDiasConDatos]);
 
-  // Calcular promedio diario de buses correctamente: total_buses / días_con_datos
+  // Usar promedio diario calculado en el backend (suma de totales diarios / días)
+  // Si no está disponible, calcular como fallback
   const promedioBusesDiarioTotal = useMemo(() => {
+    // Priorizar el valor calculado en el backend
+    if (totals && totals.promedio_diario_buses !== null && totals.promedio_diario_buses !== undefined) {
+      return totals.promedio_diario_buses;
+    }
+    // Fallback: calcular localmente si no está disponible
     if (!totals || !totals.buses || typeof totals.buses !== 'number') return 0;
     const dias = getDiasConDatos;
     if (dias === 0) return 0;

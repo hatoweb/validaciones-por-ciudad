@@ -2244,12 +2244,25 @@ def api_validaciones():
             # Contar días únicos con datos (extraer solo la fecha de fechahoraevento)
             df_validaciones['fecha'] = pd.to_datetime(df_validaciones['fechahoraevento']).dt.date
             dias_con_datos = int(df_validaciones['fecha'].nunique())
+            
+            # Calcular promedio diario: suma de totales diarios / número de días
+            # Pasajeros únicos por día (total del día, no únicos del período)
+            pasajeros_por_dia = df_validaciones.groupby('fecha')['serialmediopago'].nunique()
+            suma_pasajeros_diarios = int(pasajeros_por_dia.sum())
+            promedio_diario_pasajeros = round(suma_pasajeros_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
+            
+            # Buses únicos por día (total del día, no únicos del período)
+            buses_por_dia = df_validaciones.groupby('fecha')['idsam'].nunique()
+            suma_buses_diarios = int(buses_por_dia.sum())
+            promedio_diario_buses = round(suma_buses_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
 
             totals_global = {
                 'validaciones': total_validaciones,
                 'unique_passengers': unique_passengers,
                 'unique_buses': unique_buses,
                 'dias_con_datos': dias_con_datos,
+                'promedio_diario_pasajeros': promedio_diario_pasajeros,
+                'promedio_diario_buses': promedio_diario_buses,
                 'desde_cache': False
             }
 
@@ -2279,11 +2292,23 @@ def api_validaciones():
                     # Contar días únicos con datos
                     df_validaciones['fecha'] = pd.to_datetime(df_validaciones['fechahoraevento']).dt.date
                     dias_con_datos = int(df_validaciones['fecha'].nunique())
+                    
+                    # Calcular promedio diario: suma de totales diarios / número de días
+                    pasajeros_por_dia = df_validaciones.groupby('fecha')['serialmediopago'].nunique()
+                    suma_pasajeros_diarios = int(pasajeros_por_dia.sum())
+                    promedio_diario_pasajeros = round(suma_pasajeros_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
+                    
+                    buses_por_dia = df_validaciones.groupby('fecha')['idsam'].nunique()
+                    suma_buses_diarios = int(buses_por_dia.sum())
+                    promedio_diario_buses = round(suma_buses_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
+                    
                     totals_global = {
                         'validaciones': total_validaciones,
                         'unique_passengers': unique_passengers,
                         'unique_buses': unique_buses,
                         'dias_con_datos': dias_con_datos,
+                        'promedio_diario_pasajeros': promedio_diario_pasajeros,
+                        'promedio_diario_buses': promedio_diario_buses,
                         'desde_cache': True  # datos desde cache pero totals recalculados
                     }
                     # Actualizar cache con los totals calculados
@@ -2470,6 +2495,8 @@ def api_validaciones():
                 'unique_passengers': int(totals_global.get('unique_passengers')) if totals_global.get('unique_passengers') is not None else None,
                 'unique_buses': int(totals_global.get('unique_buses')) if totals_global.get('unique_buses') is not None else None,
                 'dias_con_datos': int(totals_global.get('dias_con_datos')) if totals_global.get('dias_con_datos') is not None else None,
+                'promedio_diario_pasajeros': float(totals_global.get('promedio_diario_pasajeros', 0.0)) if totals_global.get('promedio_diario_pasajeros') is not None else None,
+                'promedio_diario_buses': float(totals_global.get('promedio_diario_buses', 0.0)) if totals_global.get('promedio_diario_buses') is not None else None,
                 'desde_cache': bool(totals_global.get('desde_cache', desde_cache))
             }
 
