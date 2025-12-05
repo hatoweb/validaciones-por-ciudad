@@ -2240,11 +2240,16 @@ def api_validaciones():
             total_validaciones = int(len(df_validaciones))
             unique_passengers = int(df_validaciones['serialmediopago'].nunique())
             unique_buses = int(df_validaciones['idsam'].nunique())
+            
+            # Contar días únicos con datos (extraer solo la fecha de fechahoraevento)
+            df_validaciones['fecha'] = pd.to_datetime(df_validaciones['fechahoraevento']).dt.date
+            dias_con_datos = int(df_validaciones['fecha'].nunique())
 
             totals_global = {
                 'validaciones': total_validaciones,
                 'unique_passengers': unique_passengers,
                 'unique_buses': unique_buses,
+                'dias_con_datos': dias_con_datos,
                 'desde_cache': False
             }
 
@@ -2271,10 +2276,14 @@ def api_validaciones():
                     total_validaciones = int(len(df_validaciones))
                     unique_passengers = int(df_validaciones['serialmediopago'].nunique())
                     unique_buses = int(df_validaciones['idsam'].nunique())
+                    # Contar días únicos con datos
+                    df_validaciones['fecha'] = pd.to_datetime(df_validaciones['fechahoraevento']).dt.date
+                    dias_con_datos = int(df_validaciones['fecha'].nunique())
                     totals_global = {
                         'validaciones': total_validaciones,
                         'unique_passengers': unique_passengers,
                         'unique_buses': unique_buses,
+                        'dias_con_datos': dias_con_datos,
                         'desde_cache': True  # datos desde cache pero totals recalculados
                     }
                     # Actualizar cache con los totals calculados
@@ -2460,6 +2469,7 @@ def api_validaciones():
                 'validaciones': int(totals_global.get('validaciones', 0)),
                 'unique_passengers': int(totals_global.get('unique_passengers')) if totals_global.get('unique_passengers') is not None else None,
                 'unique_buses': int(totals_global.get('unique_buses')) if totals_global.get('unique_buses') is not None else None,
+                'dias_con_datos': int(totals_global.get('dias_con_datos')) if totals_global.get('dias_con_datos') is not None else None,
                 'desde_cache': bool(totals_global.get('desde_cache', desde_cache))
             }
 

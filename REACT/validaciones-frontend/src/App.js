@@ -640,20 +640,28 @@ export default function App(){
     return new Date(year, month, 0).getDate();
   };
 
-  // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_en_mes
+  // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_con_datos
+  // Usar días_con_datos del backend si está disponible, sino usar todos los días del mes
   const promedioPasajerosDiarioTotal = useMemo(() => {
     if (!totals || !totals.pasajeros || typeof totals.pasajeros !== 'number') return 0;
-    const diasEnMes = getDaysInMonth(mes, anio);
-    if (diasEnMes === 0) return 0;
-    return totals.pasajeros / diasEnMes;
+    // Priorizar días_con_datos del backend, sino usar todos los días del mes como fallback
+    const dias = totals.dias_con_datos && typeof totals.dias_con_datos === 'number' && totals.dias_con_datos > 0 
+      ? totals.dias_con_datos 
+      : getDaysInMonth(mes, anio);
+    if (dias === 0) return 0;
+    return totals.pasajeros / dias;
   }, [totals, mes, anio]);
 
-  // Calcular promedio diario de buses correctamente: total_buses / días_en_mes
+  // Calcular promedio diario de buses correctamente: total_buses / días_con_datos
+  // Usar días_con_datos del backend si está disponible, sino usar todos los días del mes
   const promedioBusesDiarioTotal = useMemo(() => {
     if (!totals || !totals.buses || typeof totals.buses !== 'number') return 0;
-    const diasEnMes = getDaysInMonth(mes, anio);
-    if (diasEnMes === 0) return 0;
-    return totals.buses / diasEnMes;
+    // Priorizar días_con_datos del backend, sino usar todos los días del mes como fallback
+    const dias = totals.dias_con_datos && typeof totals.dias_con_datos === 'number' && totals.dias_con_datos > 0 
+      ? totals.dias_con_datos 
+      : getDaysInMonth(mes, anio);
+    if (dias === 0) return 0;
+    return totals.buses / dias;
   }, [totals, mes, anio]);
 
   // Usar los totales únicos del backend
