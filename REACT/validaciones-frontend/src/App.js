@@ -635,17 +635,26 @@ export default function App(){
     }
   };
 
-  // Calcular promedio diario de pasajeros desde los datos
+  // Función para obtener el número de días en un mes
+  const getDaysInMonth = (month, year) => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_en_mes
   const promedioPasajerosDiarioTotal = useMemo(() => {
-    if (!geojson || !geojson.features || geojson.features.length === 0) return 0;
-    const promedios = geojson.features
-      .map(f => Number(f.properties?.promedio_pasajeros_diario || 0))
-      .filter(p => p > 0);
-    if (promedios.length === 0) return 0;
-    // Calcular el promedio de todos los promedios diarios
-    const suma = promedios.reduce((acc, val) => acc + val, 0);
-    return suma / promedios.length;
-  }, [geojson]);
+    if (!totals || !totals.pasajeros || typeof totals.pasajeros !== 'number') return 0;
+    const diasEnMes = getDaysInMonth(mes, anio);
+    if (diasEnMes === 0) return 0;
+    return totals.pasajeros / diasEnMes;
+  }, [totals, mes, anio]);
+
+  // Calcular promedio diario de buses correctamente: total_buses / días_en_mes
+  const promedioBusesDiarioTotal = useMemo(() => {
+    if (!totals || !totals.buses || typeof totals.buses !== 'number') return 0;
+    const diasEnMes = getDaysInMonth(mes, anio);
+    if (diasEnMes === 0) return 0;
+    return totals.buses / diasEnMes;
+  }, [totals, mes, anio]);
 
   // Usar los totales únicos del backend
   const displayedTotals = {
@@ -653,7 +662,8 @@ export default function App(){
     pasajeros: totals?.pasajeros ?? '-',
     buses: totals?.buses ?? '-',
     desde_cache: totals?.desde_cache ? 'Sí' : 'No',
-    promedioPasajerosDiario: promedioPasajerosDiarioTotal
+    promedioPasajerosDiario: promedioPasajerosDiarioTotal,
+    promedioBusesDiario: promedioBusesDiarioTotal
   };
 
   // Función para generar y descargar PDF
@@ -707,9 +717,13 @@ export default function App(){
       pdf.setFont(undefined, 'normal');
       pdf.text(`Validaciones: ${typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}`, margin + 5, yPosition);
       yPosition += 5;
-      pdf.text(`Pasajeros: ${typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}`, margin + 5, yPosition);
+      const pasajerosText = typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros;
+      const promDiarioPasajerosText = typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : '';
+      pdf.text(`Pasajeros: ${pasajerosText}${promDiarioPasajerosText}`, margin + 5, yPosition);
       yPosition += 5;
-      pdf.text(`Buses: ${typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}`, margin + 5, yPosition);
+      const busesText = typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses;
+      const promDiarioBusesText = typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toFixed(1)}` : '';
+      pdf.text(`Buses: ${busesText}${promDiarioBusesText}`, margin + 5, yPosition);
       yPosition += 10;
 
       // Encabezado de la tabla
@@ -998,7 +1012,7 @@ export default function App(){
             <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
             <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : ''}</div>
-            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}</div>
+            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toFixed(1)}` : ''}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
