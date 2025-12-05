@@ -640,29 +640,38 @@ export default function App(){
     return new Date(year, month, 0).getDate();
   };
 
+  // Función para obtener el número de días con datos
+  // Si es el mes actual: usar solo los días transcurridos hasta hoy
+  // Si es un mes pasado: usar todos los días del mes
+  const getDiasConDatos = useMemo(() => {
+    const ahora = new Date();
+    const mesActual = ahora.getMonth() + 1; // getMonth() devuelve 0-11
+    const anioActual = ahora.getFullYear();
+    
+    // Si es el mes y año actual, usar solo los días transcurridos hasta hoy
+    if (mes === mesActual && anio === anioActual) {
+      return ahora.getDate(); // Día actual del mes (ej: si hoy es 5 de diciembre, retorna 5)
+    }
+    
+    // Si es un mes pasado o futuro, usar todos los días del mes
+    return getDaysInMonth(mes, anio);
+  }, [mes, anio]);
+
   // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_con_datos
-  // Usar días_con_datos del backend si está disponible, sino usar todos los días del mes
   const promedioPasajerosDiarioTotal = useMemo(() => {
     if (!totals || !totals.pasajeros || typeof totals.pasajeros !== 'number') return 0;
-    // Priorizar días_con_datos del backend, sino usar todos los días del mes como fallback
-    const dias = totals.dias_con_datos && typeof totals.dias_con_datos === 'number' && totals.dias_con_datos > 0 
-      ? totals.dias_con_datos 
-      : getDaysInMonth(mes, anio);
+    const dias = getDiasConDatos;
     if (dias === 0) return 0;
     return totals.pasajeros / dias;
-  }, [totals, mes, anio]);
+  }, [totals, getDiasConDatos]);
 
   // Calcular promedio diario de buses correctamente: total_buses / días_con_datos
-  // Usar días_con_datos del backend si está disponible, sino usar todos los días del mes
   const promedioBusesDiarioTotal = useMemo(() => {
     if (!totals || !totals.buses || typeof totals.buses !== 'number') return 0;
-    // Priorizar días_con_datos del backend, sino usar todos los días del mes como fallback
-    const dias = totals.dias_con_datos && typeof totals.dias_con_datos === 'number' && totals.dias_con_datos > 0 
-      ? totals.dias_con_datos 
-      : getDaysInMonth(mes, anio);
+    const dias = getDiasConDatos;
     if (dias === 0) return 0;
     return totals.buses / dias;
-  }, [totals, mes, anio]);
+  }, [totals, getDiasConDatos]);
 
   // Usar los totales únicos del backend
   const displayedTotals = {
