@@ -294,7 +294,8 @@ export default function App(){
           ...res.data.totals,
           // Ensure we're using the unique counts from the backend
           pasajeros: res.data.totals.unique_passengers ?? res.data.totals.pasajeros,
-          buses: res.data.totals.unique_buses ?? res.data.totals.buses
+          buses: res.data.totals.unique_buses ?? res.data.totals.buses,
+          dias_con_datos: res.data.totals.dias_con_datos ?? null
         });
         setStats(res.data.stats || null);
       }
@@ -641,21 +642,26 @@ export default function App(){
   };
 
   // Función para obtener el número de días con datos
-  // Si es el mes actual: usar solo los días transcurridos hasta hoy
-  // Si es un mes pasado: usar todos los días del mes
+  // Priorizar dias_con_datos del backend (ya considera tipo de día de la franja)
+  // Si no está disponible, calcular basándose en mes actual vs pasado
   const getDiasConDatos = useMemo(() => {
+    // Primero intentar usar el valor del backend (ya considera el tipo de día)
+    if (totals && totals.dias_con_datos && typeof totals.dias_con_datos === 'number' && totals.dias_con_datos > 0) {
+      return totals.dias_con_datos;
+    }
+    
+    // Fallback: Si es el mes actual, usar solo los días transcurridos hasta hoy
     const ahora = new Date();
     const mesActual = ahora.getMonth() + 1; // getMonth() devuelve 0-11
     const anioActual = ahora.getFullYear();
     
-    // Si es el mes y año actual, usar solo los días transcurridos hasta hoy
     if (mes === mesActual && anio === anioActual) {
       return ahora.getDate(); // Día actual del mes (ej: si hoy es 5 de diciembre, retorna 5)
     }
     
-    // Si es un mes pasado o futuro, usar todos los días del mes
+    // Si es un mes pasado o futuro, usar todos los días del mes (fallback)
     return getDaysInMonth(mes, anio);
-  }, [mes, anio]);
+  }, [totals, mes, anio]);
 
   // Calcular promedio diario de pasajeros correctamente: total_pasajeros / días_con_datos
   const promedioPasajerosDiarioTotal = useMemo(() => {
