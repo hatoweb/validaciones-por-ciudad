@@ -990,16 +990,6 @@ export default function App(){
         pdf.setPage(i);
         pdf.setFontSize(8);
         pdf.setTextColor(128, 128, 128);
-        // Fuente de datos de población
-        pdf.setFontSize(7);
-        pdf.text(
-          'Fuente: INE. Censo Nacional de Población y Viviendas, 2022.',
-          pageWidth / 2,
-          pageHeight - 12,
-          { align: 'center' }
-        );
-        // Número de página y fecha
-        pdf.setFontSize(8);
         pdf.text(
           `Página ${i} de ${totalPages} - Generado el ${new Date().toLocaleString('es-ES')}`,
           pageWidth / 2,
