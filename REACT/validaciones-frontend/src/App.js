@@ -444,7 +444,7 @@ export default function App(){
         <b>📊 DEMANDA:</b><br>
         <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
         <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
-        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
+        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/><small style="font-style: italic; color: #888;">Fuente: INE. Censo Nacional de Población y Viviendas, 2022.</small><br/>` : ''}
         <b>🚌 OFERTA:</b><br>
         <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
         ${false ? `
