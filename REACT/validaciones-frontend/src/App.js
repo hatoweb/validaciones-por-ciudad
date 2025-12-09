@@ -1234,8 +1234,8 @@ export default function App(){
                   bottom: 0,
                   backgroundColor: 'rgba(0, 0, 0, 0.5)',
                   display: 'flex',
-                  justifyContent: 'justify',
-                  alignItems: 'justify',
+                  justifyContent: 'center',
+                  alignItems: 'center',
                   zIndex: 10000
                 }}
                 onClick={() => setShowIndicadoresModal(false)}
@@ -1271,7 +1271,7 @@ export default function App(){
                       ×
                     </button>
                   </div>
-                  <div style={{lineHeight: '2', fontSize: '1.1em'}}>
+                  <div style={{lineHeight: '2', fontSize: '1.1em', textAlign: 'justify'}}>
                     <div style={{marginBottom: '15px'}}><b>📜 Validaciones:</b> demanda mensual en las localidades y franja horaria seleccionada.</div>
                     <div style={{marginBottom: '15px'}}><b>🚌 Buses:</b> total de buses distintos y en promedio diario que circulan en las localidades y franjas horarias elegidas.</div>
                     <div style={{marginBottom: '15px'}}><b>👥 Pasajeros:</b> tarjetas distintas y promedio diario utilizadas en las localidades y franjas horarias elegidas.</div>
