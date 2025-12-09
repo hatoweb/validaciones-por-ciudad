@@ -1151,9 +1151,9 @@ export default function App(){
           <Legend min={computedStats.min} max={computedStats.max} criterio={criterio} />
           <div className="card totals">
             <h3>Totales del sistema en el periodo y franja seleccionada {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
-            <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
-            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
-            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
+            <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString('es-PY') : displayedTotals.validaciones}</div>
+            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString('es-PY') : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
+            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString('es-PY') : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
@@ -1200,16 +1200,16 @@ export default function App(){
                 objectFit: 'contain'
               }}
             />
-            <img 
-              src={getStaticUrl('/Logo_CIDSA2.jpg')}
-              alt="CIDSA Logo" 
-              style={{
-                maxWidth: '100%',
-                height: 'auto',
-                display: 'block',
-                margin: '0 auto'
-              }}
-            />
+            <div style={{textAlign: 'left', paddingTop: '15px'}}>
+              <h4 style={{marginTop: 0, marginBottom: '15px'}}>Los principales indicadores disponibles son:</h4>
+              <div style={{lineHeight: '1.8'}}>
+                <div><b>📜 Validaciones:</b> demanda mensual en las localidades y franja horaria seleccionada.</div>
+                <div><b>🚌 Buses:</b> total de buses distintos y en promedio diario que circulan en las localidades y franjas horarias elegidas.</div>
+                <div><b>👥 Pasajeros:</b> tarjetas distintas y promedio diario utilizadas en las localidades y franjas horarias elegidas.</div>
+                <div><b>🏡 Población:</b> datos del INE por zona.</div>
+                <div><b>📊 Tasa de uso:</b> relación pasajeros / población.</div>
+              </div>
+            </div>
           </div>
         </aside>
       </main>
