@@ -435,24 +435,33 @@ export default function App(){
     let color = '#f0f0f0';
     let intensity = 0;
     
-    if(val > 0){
+    if(val >= 0){
       if(criterio === 'porcentaje'){
-        // Segmentación personalizada para Tasa de uso
-        if(val <= 25){
+        // Segmentación personalizada para Tasa de uso (debe coincidir exactamente con la leyenda)
+        // 0% - 25%
+        if(val >= 0 && val <= 25){
           intensity = 0.2;
-        } else if(val <= 50){
+        }
+        // 25% - 50%
+        else if(val > 25 && val <= 50){
           intensity = 0.4;
-        } else if(val <= 75){
+        }
+        // 50% - 75%
+        else if(val > 50 && val <= 75){
           intensity = 0.6;
-        } else if(val <= 100){
+        }
+        // 75% - 100%
+        else if(val > 75 && val <= 100){
           intensity = 0.8;
-        } else {
+        }
+        // > 100%
+        else if(val > 100){
           intensity = 1.0;
         }
       } else {
         // Segmentación normal para otros criterios
         const maxVal = computedStats.max || 0;
-        if(maxVal > 0){
+        if(maxVal > 0 && val > 0){
           intensity = Math.min(1, val / maxVal);
         }
       }
