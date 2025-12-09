@@ -1210,7 +1210,7 @@ export default function App(){
                 color: '#0066cc'
               }}
               onClick={() => setShowIndicadoresModal(true)}
-              onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseEnter={(e) => e.target.style.textDecoration = 'none'}
               onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
             >
               <h4 style={{marginTop: 0, marginBottom: '10px', fontSize: '1em'}}>Los principales indicadores disponibles son:</h4>
@@ -1234,8 +1234,8 @@ export default function App(){
                   bottom: 0,
                   backgroundColor: 'rgba(0, 0, 0, 0.5)',
                   display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
+                  justifyContent: 'justify',
+                  alignItems: 'justify',
                   zIndex: 10000
                 }}
                 onClick={() => setShowIndicadoresModal(false)}
@@ -1253,7 +1253,7 @@ export default function App(){
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'justify', marginBottom: '20px'}}>
                     <h3 style={{margin: 0, fontSize: '1.5em'}}>Los principales indicadores disponibles son:</h3>
                     <button
                       onClick={() => setShowIndicadoresModal(false)}
