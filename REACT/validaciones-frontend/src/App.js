@@ -132,8 +132,42 @@ function getNameFromProps(props){
 }
 
 // Componente para acceder a la instancia del mapa
-function MapController({ centerMap, zoomToFeature, geoJsonLayerRef }) {
+function MapController({ centerMap, zoomToFeature, geoJsonLayerRef, geojson }) {
   const map = useMap();
+  
+  // Ajustar bounds automáticamente cuando se carga el GeoJSON
+  useEffect(() => {
+    if (geoJsonLayerRef && geoJsonLayerRef.current && geojson) {
+      // Esperar un momento para que las capas se rendericen
+      setTimeout(() => {
+        try {
+          let bounds = null;
+          geoJsonLayerRef.current.eachLayer((layer) => {
+            if (layer.getBounds) {
+              const layerBounds = layer.getBounds();
+              if (layerBounds && layerBounds.isValid()) {
+                if (!bounds) {
+                  bounds = layerBounds;
+                } else {
+                  bounds.extend(layerBounds);
+                }
+              }
+            }
+          });
+          
+          if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds, { 
+              padding: [20, 20], 
+              maxZoom: 15,
+              animate: true
+            });
+          }
+        } catch (error) {
+          console.error('Error ajustando bounds del mapa:', error);
+        }
+      }, 500);
+    }
+  }, [geojson, geoJsonLayerRef, map]);
   
   useEffect(() => {
     if (centerMap && zoomToFeature) {
@@ -505,7 +539,7 @@ export default function App(){
         ` : ''}
         <br/>
         <b>Fuentes:</b><br/>
-        ${poblacion > 0 ? 'INE. Censo Nacional de Población y Viviendas, 2022.<br/>' : ''}
+        ${poblacion > 0 ? 'INE. CNPV 2022.<br/>' : ''}
         SNBE. Sistema Nacional de Billetaje electrónico<br/>
       </div>
     `;
@@ -1134,7 +1168,7 @@ export default function App(){
                 url={mapLayers[mapLayer].url}
                 attribution={mapLayers[mapLayer].attribution}
               />
-              <MapController centerMap={centerMap} zoomToFeature={zoomToFeature} geoJsonLayerRef={geoJsonLayerRef} />
+              <MapController centerMap={centerMap} zoomToFeature={zoomToFeature} geoJsonLayerRef={geoJsonLayerRef} geojson={geojson} />
               <GeoJSON 
                 key={`geojson-${geojsonKey}-${idFranja}`}
                 ref={geoJsonLayerRef}
