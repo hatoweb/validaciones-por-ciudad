@@ -89,25 +89,6 @@ function getTurquoiseColor(intensity){
   return '#0f5f5a';
 }
 
-function formatNumber(num, decimals = 0){
-  if(num === null || num === undefined || isNaN(num)) return '0';
-  const numValue = Number(num);
-  
-  // Formatear con decimales
-  const fixedValue = decimals > 0 ? numValue.toFixed(decimals) : numValue.toString();
-  const parts = fixedValue.split('.');
-  
-  // Formatear parte entera con puntos como separador de miles
-  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  
-  // Si hay decimales, usar coma como separador
-  if(decimals > 0 && parts[1]){
-    return `${integerPart},${parts[1]}`;
-  }
-  
-  return integerPart;
-}
-
 function getFeatureValue(feature, criterio){
   const p = feature.properties || {};
   if(criterio === 'validaciones') return Number(p.cantidad_validaciones || 0);
@@ -121,6 +102,16 @@ function getFeatureValue(feature, criterio){
   if(criterio === 'empresas') return Number(p.num_empresas || 0);
   if(criterio === 'lineas') return Number(p.num_lineas || 0);
   return Number(p.cantidad_validaciones || 0);
+}
+
+// Función para calcular la intensidad según la segmentación fija de Tasa de uso
+function getPorcentajeIntensity(valorPorcentaje){
+  if(valorPorcentaje <= 0) return 0;
+  if(valorPorcentaje <= 25) return 0.2;  // 0% - 25%
+  if(valorPorcentaje <= 50) return 0.4;  // 26% - 50%
+  if(valorPorcentaje <= 75) return 0.6;  // 51% - 75%
+  if(valorPorcentaje <= 100) return 0.8; // 76% - 100%
+  return 1.0; // > 100%
 }
 
 function getNameFromProps(props){
@@ -181,34 +172,14 @@ function Legend({min, max, criterio}){
   let buckets = [];
   
   if(criterio === 'porcentaje'){
-    // Segmentación personalizada para Tasa de uso
-    // 4 segmentos para <= 100%
-    buckets.push({
-      label: '0% - 25%',
-      color: getTurquoiseColor(0.2),
-      max: 25
-    });
-    buckets.push({
-      label: '25% - 50%',
-      color: getTurquoiseColor(0.4),
-      max: 50
-    });
-    buckets.push({
-      label: '50% - 75%',
-      color: getTurquoiseColor(0.6),
-      max: 75
-    });
-    buckets.push({
-      label: '75% - 100%',
-      color: getTurquoiseColor(0.8),
-      max: 100
-    });
-    // 1 segmento para > 100%
-    buckets.push({
-      label: '> 100%',
-      color: getTurquoiseColor(1.0),
-      max: Infinity
-    });
+    // Segmentación fija para Tasa de uso
+    buckets = [
+      { label: '0% - 25%', color: getTurquoiseColor(0.2), intensity: 0.2 },
+      { label: '26% - 50%', color: getTurquoiseColor(0.4), intensity: 0.4 },
+      { label: '51% - 75%', color: getTurquoiseColor(0.6), intensity: 0.6 },
+      { label: '76% - 100%', color: getTurquoiseColor(0.8), intensity: 0.8 },
+      { label: '> 100%', color: getTurquoiseColor(1.0), intensity: 1.0 }
+    ];
   } else {
     // Segmentación normal para otros criterios
     const steps = 5;
@@ -437,36 +408,19 @@ export default function App(){
     
     if(val >= 0){
       if(criterio === 'porcentaje'){
-        // Segmentación personalizada para Tasa de uso (debe coincidir exactamente con la leyenda)
-        // 0% - 25%
-        if(val >= 0 && val <= 25){
-          intensity = 0.2;
-        }
-        // 25% - 50%
-        else if(val > 25 && val <= 50){
-          intensity = 0.4;
-        }
-        // 50% - 75%
-        else if(val > 50 && val <= 75){
-          intensity = 0.6;
-        }
-        // 75% - 100%
-        else if(val > 75 && val <= 100){
-          intensity = 0.8;
-        }
-        // > 100%
-        else if(val > 100){
-          intensity = 1.0;
-        }
+        // Usar segmentación fija para Tasa de uso
+        intensity = getPorcentajeIntensity(val);
+        color = getTurquoiseColor(intensity);
       } else {
         // Segmentación normal para otros criterios
         const maxVal = computedStats.max || 0;
         if(maxVal > 0 && val > 0){
           intensity = Math.min(1, val / maxVal);
+          color = getTurquoiseColor(intensity);
         }
       }
-      color = getTurquoiseColor(intensity);
     }
+    
     return {
       fillColor: color,
       color: '#ffffff',
@@ -496,11 +450,23 @@ export default function App(){
           // Recalcular estilo basado en el criterio actual
           const val = getFeatureValue(feature, criterio);
           let color = '#f0f0f0';
-          const maxVal = computedStats.max || 0;
-          if(maxVal > 0 && val > 0){
-            const intensity = Math.min(1, val / maxVal);
-            color = getTurquoiseColor(intensity);
+          let intensity = 0;
+          
+          if(val >= 0){
+            if(criterio === 'porcentaje'){
+              // Usar segmentación fija para Tasa de uso
+              intensity = getPorcentajeIntensity(val);
+              color = getTurquoiseColor(intensity);
+            } else {
+              // Segmentación normal para otros criterios
+              const maxVal = computedStats.max || 0;
+              if(maxVal > 0 && val > 0){
+                intensity = Math.min(1, val / maxVal);
+                color = getTurquoiseColor(intensity);
+              }
+            }
           }
+          
           const newStyle = {
             fillColor: color,
             color: '#ffffff',
@@ -520,22 +486,18 @@ export default function App(){
     const poblacion = Number(p.POBLACION || p.poblacion || 0);
     const promedioPasajerosDiario = Number(p.promedio_pasajeros_diario || 0);
     const promedioBusesDiario = Number(p.promedio_buses_diario || 0);
-    const cantidadValidaciones = Number(p.cantidad_validaciones || 0);
-    const cantidadPasajeros = Number(p.cantidad_pasajeros || 0);
-    const cantidadBuses = Number(p.cantidad_buses || 0);
-    
     const popupHtml = `
       <div style="min-width:180px">
         <b>${nombre}</b><br/>
         <b>📊 DEMANDA:</b><br>
-        <b>Validaciones:</b> ${formatNumber(cantidadValidaciones)}<br/>
-        <b>Pasajeros:</b> ${formatNumber(cantidadPasajeros)}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${formatNumber(promedioPasajerosDiario, 1)}` : ''}<br/>
-        ${poblacion > 0 ? `<b>Población:</b> ${formatNumber(poblacion)}<br/>` : ''}
+        <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
+        <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
+        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
-        <b>Buses:</b> ${formatNumber(cantidadBuses)}${promedioBusesDiario > 0 ? ` / Prom. diario: ${formatNumber(promedioBusesDiario, 1)}` : ''}<br/>
+        <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
         ${false ? `
-        <b>Empresas:</b> ${formatNumber(p.num_empresas || 0)}<br/>
-        <b>Líneas:</b> ${formatNumber(p.num_lineas || 0)}
+        <b>Empresas:</b> ${p.num_empresas || 0}<br/>
+        <b>Líneas:</b> ${p.num_lineas || 0}
         ` : ''}
         <br/>
         <b>Fuentes:</b><br/>
@@ -1185,7 +1147,7 @@ export default function App(){
         <aside className="sidebar">
           <Legend min={computedStats.min} max={computedStats.max} criterio={criterio} />
           <div className="card totals">
-            <h3>Totales del sistema en el periodo y franja seleccionada  {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
+            <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
             <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : ''}</div>
             <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toFixed(1)}` : ''}</div>
