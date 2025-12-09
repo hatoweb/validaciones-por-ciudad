@@ -486,18 +486,21 @@ export default function App(){
     const poblacion = Number(p.POBLACION || p.poblacion || 0);
     const promedioPasajerosDiario = Number(p.promedio_pasajeros_diario || 0);
     const promedioBusesDiario = Number(p.promedio_buses_diario || 0);
+    const cantidadValidaciones = Number(p.cantidad_validaciones || 0);
+    const cantidadPasajeros = Number(p.cantidad_pasajeros || 0);
+    const cantidadBuses = Number(p.cantidad_buses || 0);
     const popupHtml = `
       <div style="min-width:180px">
         <b>${nombre}</b><br/>
         <b>📊 DEMANDA:</b><br>
-        <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
-        <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
+        <b>Validaciones:</b> ${cantidadValidaciones.toLocaleString()}<br/>
+        <b>Pasajeros:</b> ${cantidadPasajeros.toLocaleString()}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
         ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
-        <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
+        <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
         ${false ? `
-        <b>Empresas:</b> ${p.num_empresas || 0}<br/>
-        <b>Líneas:</b> ${p.num_lineas || 0}
+        <b>Empresas:</b> ${Number(p.num_empresas || 0).toLocaleString()}<br/>
+        <b>Líneas:</b> ${Number(p.num_lineas || 0).toLocaleString()}
         ` : ''}
         <br/>
         <b>Fuentes:</b><br/>
@@ -1147,10 +1150,10 @@ export default function App(){
         <aside className="sidebar">
           <Legend min={computedStats.min} max={computedStats.max} criterio={criterio} />
           <div className="card totals">
-            <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
+            <h3>Totales del sistema en el periodo y franja seleccionada {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
-            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : ''}</div>
-            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toFixed(1)}` : ''}</div>
+            <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
+            <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
