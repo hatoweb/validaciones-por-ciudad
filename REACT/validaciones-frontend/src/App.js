@@ -159,18 +159,52 @@ function MapController({ centerMap, zoomToFeature, geoJsonLayerRef }) {
 
 function Legend({min, max, criterio}){
   if(max === 0 && min === 0) return null;
-  const steps = 5;
-  const step = (max - min) / steps || 0;
-  const buckets = [];
-  for(let i=0;i<steps;i++){
-    const inicio = min + i*step;
-    const fin = (i === steps-1) ? max : min + (i+1)*step;
-    const intensity = (i+1)/steps;
+  let buckets = [];
+  
+  if(criterio === 'porcentaje'){
+    // Segmentación personalizada para Tasa de uso
+    // 4 segmentos para <= 100%
     buckets.push({
-      label: criterio === 'porcentaje' ? `${inicio.toFixed(1)}% - ${fin.toFixed(1)}%` : `${Math.round(inicio).toLocaleString()} - ${Math.round(fin).toLocaleString()}`,
-      color: getTurquoiseColor(intensity)
+      label: '0% - 25%',
+      color: getTurquoiseColor(0.2),
+      max: 25
     });
+    buckets.push({
+      label: '25% - 50%',
+      color: getTurquoiseColor(0.4),
+      max: 50
+    });
+    buckets.push({
+      label: '50% - 75%',
+      color: getTurquoiseColor(0.6),
+      max: 75
+    });
+    buckets.push({
+      label: '75% - 100%',
+      color: getTurquoiseColor(0.8),
+      max: 100
+    });
+    // 1 segmento para > 100%
+    buckets.push({
+      label: '> 100%',
+      color: getTurquoiseColor(1.0),
+      max: Infinity
+    });
+  } else {
+    // Segmentación normal para otros criterios
+    const steps = 5;
+    const step = (max - min) / steps || 0;
+    for(let i=0;i<steps;i++){
+      const inicio = min + i*step;
+      const fin = (i === steps-1) ? max : min + (i+1)*step;
+      const intensity = (i+1)/steps;
+      buckets.push({
+        label: `${Math.round(inicio).toLocaleString()} - ${Math.round(fin).toLocaleString()}`,
+        color: getTurquoiseColor(intensity)
+      });
+    }
   }
+  
   const title = criterio === 'validaciones' ? 'Validaciones' : criterio === 'porcentaje' ? 'Tasa de uso' : criterio === 'buses' ? 'Buses' : criterio === 'empresas' ? 'Empresas' : 'Líneas';
   return (
     <div className="legend card">
@@ -380,9 +414,29 @@ export default function App(){
   const styleFeature = (feature) => {
     const val = getFeatureValue(feature, criterio);
     let color = '#f0f0f0';
-    const maxVal = computedStats.max || 0;
-    if(maxVal > 0 && val > 0){
-      const intensity = Math.min(1, val / maxVal);
+    let intensity = 0;
+    
+    if(val > 0){
+      if(criterio === 'porcentaje'){
+        // Segmentación personalizada para Tasa de uso
+        if(val <= 25){
+          intensity = 0.2;
+        } else if(val <= 50){
+          intensity = 0.4;
+        } else if(val <= 75){
+          intensity = 0.6;
+        } else if(val <= 100){
+          intensity = 0.8;
+        } else {
+          intensity = 1.0;
+        }
+      } else {
+        // Segmentación normal para otros criterios
+        const maxVal = computedStats.max || 0;
+        if(maxVal > 0){
+          intensity = Math.min(1, val / maxVal);
+        }
+      }
       color = getTurquoiseColor(intensity);
     }
     return {
@@ -444,13 +498,17 @@ export default function App(){
         <b>📊 DEMANDA:</b><br>
         <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
         <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
-        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/><small style="font-style: italic; color: #888;">Fuente: INE. Censo Nacional de Población y Viviendas, 2022.</small><br/>` : ''}
+        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
         <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
         ${false ? `
         <b>Empresas:</b> ${p.num_empresas || 0}<br/>
         <b>Líneas:</b> ${p.num_lineas || 0}
         ` : ''}
+        <br/>
+        <b>Fuentes:</b><br/>
+        ${poblacion > 0 ? 'INE. Censo Nacional de Población y Viviendas, 2022.<br/>' : ''}
+        SNBE. Sistema Nacional de Billetaje electrónico<br/>
       </div>
     `;
     // Bind popup (still available on click) but also show on hover
