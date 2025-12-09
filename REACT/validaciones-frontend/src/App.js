@@ -89,6 +89,25 @@ function getTurquoiseColor(intensity){
   return '#0f5f5a';
 }
 
+function formatNumber(num, decimals = 0){
+  if(num === null || num === undefined || isNaN(num)) return '0';
+  const numValue = Number(num);
+  
+  // Formatear con decimales
+  const fixedValue = decimals > 0 ? numValue.toFixed(decimals) : numValue.toString();
+  const parts = fixedValue.split('.');
+  
+  // Formatear parte entera con puntos como separador de miles
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  // Si hay decimales, usar coma como separador
+  if(decimals > 0 && parts[1]){
+    return `${integerPart},${parts[1]}`;
+  }
+  
+  return integerPart;
+}
+
 function getFeatureValue(feature, criterio){
   const p = feature.properties || {};
   if(criterio === 'validaciones') return Number(p.cantidad_validaciones || 0);
@@ -492,18 +511,22 @@ export default function App(){
     const poblacion = Number(p.POBLACION || p.poblacion || 0);
     const promedioPasajerosDiario = Number(p.promedio_pasajeros_diario || 0);
     const promedioBusesDiario = Number(p.promedio_buses_diario || 0);
+    const cantidadValidaciones = Number(p.cantidad_validaciones || 0);
+    const cantidadPasajeros = Number(p.cantidad_pasajeros || 0);
+    const cantidadBuses = Number(p.cantidad_buses || 0);
+    
     const popupHtml = `
       <div style="min-width:180px">
         <b>${nombre}</b><br/>
         <b>📊 DEMANDA:</b><br>
-        <b>Validaciones:</b> ${p.cantidad_validaciones || 0}<br/>
-        <b>Pasajeros:</b> ${p.cantidad_pasajeros || 0}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toFixed(1)}` : ''}<br/>
-        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
+        <b>Validaciones:</b> ${formatNumber(cantidadValidaciones)}<br/>
+        <b>Pasajeros:</b> ${formatNumber(cantidadPasajeros)}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${formatNumber(promedioPasajerosDiario, 1)}` : ''}<br/>
+        ${poblacion > 0 ? `<b>Población:</b> ${formatNumber(poblacion)}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
-        <b>Buses:</b> ${p.cantidad_buses || 0}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toFixed(1)}` : ''}<br/>
+        <b>Buses:</b> ${formatNumber(cantidadBuses)}${promedioBusesDiario > 0 ? ` / Prom. diario: ${formatNumber(promedioBusesDiario, 1)}` : ''}<br/>
         ${false ? `
-        <b>Empresas:</b> ${p.num_empresas || 0}<br/>
-        <b>Líneas:</b> ${p.num_lineas || 0}
+        <b>Empresas:</b> ${formatNumber(p.num_empresas || 0)}<br/>
+        <b>Líneas:</b> ${formatNumber(p.num_lineas || 0)}
         ` : ''}
         <br/>
         <b>Fuentes:</b><br/>
@@ -1153,7 +1176,7 @@ export default function App(){
         <aside className="sidebar">
           <Legend min={computedStats.min} max={computedStats.max} criterio={criterio} />
           <div className="card totals">
-            <h3>Totales {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
+            <h3>Totales del sistema en el periodo y franja seleccionada  {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString() : displayedTotals.validaciones}</div>
             <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString() : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toFixed(1)}` : ''}</div>
             <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString() : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toFixed(1)}` : ''}</div>
