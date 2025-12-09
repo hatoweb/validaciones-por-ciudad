@@ -220,6 +220,7 @@ export default function App(){
   const [totals, setTotals] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showIndicadoresModal, setShowIndicadoresModal] = useState(false);
   const [opacity, setOpacity] = useState(0.9); // Estado para controlar la opacidad
   const [mapLayer, setMapLayer] = useState('street'); // Estado para la capa del mapa
 
@@ -1200,9 +1201,20 @@ export default function App(){
                 objectFit: 'contain'
               }}
             />
-            <div style={{textAlign: 'left', paddingTop: '15px'}}>
-              <h4 style={{marginTop: 0, marginBottom: '15px'}}>Los principales indicadores disponibles son:</h4>
-              <div style={{lineHeight: '1.8'}}>
+            <div 
+              style={{
+                textAlign: 'left', 
+                paddingTop: '15px',
+                fontSize: '0.85em',
+                cursor: 'pointer',
+                color: '#0066cc'
+              }}
+              onClick={() => setShowIndicadoresModal(true)}
+              onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+            >
+              <h4 style={{marginTop: 0, marginBottom: '10px', fontSize: '1em'}}>Los principales indicadores disponibles son:</h4>
+              <div style={{lineHeight: '1.6', fontSize: '0.9em'}}>
                 <div><b>📜 Validaciones:</b> demanda mensual en las localidades y franja horaria seleccionada.</div>
                 <div><b>🚌 Buses:</b> total de buses distintos y en promedio diario que circulan en las localidades y franjas horarias elegidas.</div>
                 <div><b>👥 Pasajeros:</b> tarjetas distintas y promedio diario utilizadas en las localidades y franjas horarias elegidas.</div>
@@ -1210,6 +1222,65 @@ export default function App(){
                 <div><b>📊 Tasa de uso:</b> relación pasajeros / población.</div>
               </div>
             </div>
+            
+            {/* Modal de Indicadores */}
+            {showIndicadoresModal && (
+              <div 
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  zIndex: 10000
+                }}
+                onClick={() => setShowIndicadoresModal(false)}
+              >
+                <div 
+                  style={{
+                    backgroundColor: 'white',
+                    padding: '30px',
+                    borderRadius: '8px',
+                    maxWidth: '600px',
+                    width: '90%',
+                    maxHeight: '80vh',
+                    overflow: 'auto',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                    <h3 style={{margin: 0, fontSize: '1.5em'}}>Los principales indicadores disponibles son:</h3>
+                    <button
+                      onClick={() => setShowIndicadoresModal(false)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '24px',
+                        cursor: 'pointer',
+                        color: '#666',
+                        padding: '0',
+                        width: '30px',
+                        height: '30px'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div style={{lineHeight: '2', fontSize: '1.1em'}}>
+                    <div style={{marginBottom: '15px'}}><b>📜 Validaciones:</b> demanda mensual en las localidades y franja horaria seleccionada.</div>
+                    <div style={{marginBottom: '15px'}}><b>🚌 Buses:</b> total de buses distintos y en promedio diario que circulan en las localidades y franjas horarias elegidas.</div>
+                    <div style={{marginBottom: '15px'}}><b>👥 Pasajeros:</b> tarjetas distintas y promedio diario utilizadas en las localidades y franjas horarias elegidas.</div>
+                    <div style={{marginBottom: '15px'}}><b>🏡 Población:</b> datos del INE por zona.</div>
+                    <div style={{marginBottom: '15px'}}><b>📊 Tasa de uso:</b> relación pasajeros / población.</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </aside>
       </main>
