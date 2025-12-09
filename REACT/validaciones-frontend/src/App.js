@@ -1345,7 +1345,7 @@ export default function App(){
                   {sortColumn !== 'pasajeros' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('promedioPasajerosDiario')} title="Clic para ordenar">
-                  Prom. diario {sortColumn === 'promedioPasajerosDiario' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  Prom. diario (pasajeros) {sortColumn === 'promedioPasajerosDiario' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'promedioPasajerosDiario' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('poblacion')} title="Clic para ordenar">
