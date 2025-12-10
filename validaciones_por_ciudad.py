@@ -811,9 +811,9 @@ def obtener_validaciones(mes, anio, id_franja):
     AND latitude IS NOT NULL
     AND longitude IS NOT NULL
     -- INICIO DE LA OPTIMIZACIÓN GEOGRÁFICA
-    AND (latitude BETWEEN -26.00 AND -25.00 AND longitude BETWEEN -58.00 AND -57.00)
+    AND (latitude BETWEEN -26.00 AND -25.00 AND longitude BETWEEN -58.00 AND -57.00);
     -- FIN DE LA OPTIMIZACIÓN GEOGRÁFICA
-    ORDER BY idsam, consecutivoevento, serialmediopago, fechahoraevento DESC;
+    -- ORDER BY idsam, consecutivoevento, serialmediopago, fechahoraevento DESC
     """
     
     try:
