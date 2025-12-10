@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import json
 import hashlib
 from pathlib import Path
+import time
 # Añadir imports
 from flask_cors import CORS
 
@@ -816,6 +817,10 @@ def obtener_validaciones(mes, anio, id_franja):
     -- ORDER BY idsam, consecutivoevento, serialmediopago, fechahoraevento DESC
     """
     
+    tiempo_inicio = time.time()
+    tiempo_conexion_inicio = None
+    tiempo_query_inicio = None
+    
     try:
         # Configuración de conexión con timeouts extendidos para consultas largas
         conn_config = DB_CONFIG.copy()
@@ -823,17 +828,54 @@ def obtener_validaciones(mes, anio, id_franja):
         # Timeout de statement: 30 minutos (1800000 ms) - tiempo máximo para ejecutar la query
         conn_config['options'] = '-c statement_timeout=1800000'
         
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Iniciando conexión a base de datos para {denominacion}...")
+        tiempo_conexion_inicio = time.time()
         conn = psycopg2.connect(**conn_config)
+        tiempo_conexion = time.time() - tiempo_conexion_inicio
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✓ Conexión establecida en {tiempo_conexion:.2f} segundos")
+        
         # Ejecutar query con todos los parámetros
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Ejecutando consulta SQL...")
+        tiempo_query_inicio = time.time()
         df = pd.read_sql_query(query, conn, params=tuple(query_params))
+        tiempo_query = time.time() - tiempo_query_inicio
+        tiempo_total = time.time() - tiempo_inicio
+        
         conn.close()
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✓ Consulta completada en {tiempo_query:.2f} segundos (Total: {tiempo_total:.2f} segundos)")
         print(f"Validaciones obtenidas ({denominacion}): {len(df)}")
         return df
-    except Exception as e:
-        print(f"Error al conectar a la base de datos: {e}")
+        
+    except psycopg2_errors.QueryCanceled as e:
+        tiempo_transcurrido = time.time() - tiempo_inicio
+        tiempo_query_transcurrido = time.time() - tiempo_query_inicio if tiempo_query_inicio else 0
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ TIMEOUT: La consulta fue cancelada después de {tiempo_query_transcurrido:.2f} segundos (Tiempo total: {tiempo_transcurrido:.2f} segundos)")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Error: {str(e)}")
         import traceback
         print(traceback.format_exc())
-        return None
+        raise
+        
+    except psycopg2.OperationalError as e:
+        tiempo_transcurrido = time.time() - tiempo_inicio
+        tiempo_conexion_transcurrido = time.time() - tiempo_conexion_inicio if tiempo_conexion_inicio else 0
+        if 'timeout' in str(e).lower() or 'timed out' in str(e).lower():
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ TIMEOUT DE CONEXIÓN: La conexión se cortó después de {tiempo_conexion_transcurrido:.2f} segundos (Tiempo total: {tiempo_transcurrido:.2f} segundos)")
+        else:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ ERROR DE CONEXIÓN después de {tiempo_conexion_transcurrido:.2f} segundos (Tiempo total: {tiempo_transcurrido:.2f} segundos)")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise
+        
+    except Exception as e:
+        tiempo_transcurrido = time.time() - tiempo_inicio
+        tiempo_query_transcurrido = time.time() - tiempo_query_inicio if tiempo_query_inicio else 0
+        tiempo_conexion_transcurrido = time.time() - tiempo_conexion_inicio if tiempo_conexion_inicio else 0
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ ERROR después de {tiempo_transcurrido:.2f} segundos (Conexión: {tiempo_conexion_transcurrido:.2f}s, Query: {tiempo_query_transcurrido:.2f}s)")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise
 
 def obtener_empresas_lineas_por_area(gdf_areas):
     """Obtiene las empresas y líneas que pasan por cada área desde la base de datos de rutas"""
