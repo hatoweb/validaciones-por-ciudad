@@ -817,7 +817,13 @@ def obtener_validaciones(mes, anio, id_franja):
     """
     
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        # Configuración de conexión con timeouts extendidos para consultas largas
+        conn_config = DB_CONFIG.copy()
+        conn_config['connect_timeout'] = 30  # 30 segundos para establecer conexión
+        # Timeout de statement: 30 minutos (1800000 ms) - tiempo máximo para ejecutar la query
+        conn_config['options'] = '-c statement_timeout=1800000'
+        
+        conn = psycopg2.connect(**conn_config)
         # Ejecutar query con todos los parámetros
         df = pd.read_sql_query(query, conn, params=tuple(query_params))
         conn.close()
