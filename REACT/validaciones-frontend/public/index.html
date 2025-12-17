@@ -28,6 +28,21 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
+    
+    <!-- Google Analytics -->
+    <!-- NOTA: El ID de Google Analytics se configura mediante la variable de entorno REACT_APP_GA_MEASUREMENT_ID -->
+    <!-- La inicialización se realiza dinámicamente en index.js para mayor flexibilidad -->
+    <!-- Este script inicializa el dataLayer y la función gtag, pero el script de gtag.js se carga dinámicamente desde analytics.js -->
+    <script>
+      // Inicializar dataLayer antes de cargar el script de GA
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('js', new Date());
+      // La configuración completa y carga del script se realizará en index.js cuando se detecte el ID
+    </script>
+    <!-- End Google Analytics -->
+    
     <title>Validaciones de Transporte | VMT - MOPC</title>
   </head>
   <body>
