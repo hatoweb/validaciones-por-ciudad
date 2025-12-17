@@ -535,7 +535,7 @@ export default function App(){
         <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
         <b>Empresas:</b> ${Number(p.num_empresas || 0).toLocaleString()}<br/>
         <b>Líneas:</b> ${Number(p.num_lineas || 0).toLocaleString()}
-        <br/>
+        <br/><br/>
         <b>Fuentes:</b><br/>
         ${poblacion > 0 ? 'INE. CNPV 2022.<br/>' : ''}
         SNBE. Sistema Nacional de Billetaje electrónico<br/>
