@@ -1108,7 +1108,7 @@ export default function App(){
           </select>
 
           <select value={anio} onChange={e=>setAnio(Number(e.target.value))}>
-            {[2025,2024,2023,2022].map(y => <option key={y} value={y}>{y}</option>)}
+            {[2026,2025,2024,2023,2022].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
 
           <select 
