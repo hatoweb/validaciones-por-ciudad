@@ -515,6 +515,9 @@ export default function App(){
     }
   }, [criterio, computedStats, incluirBarrios, opacity, geojson]);
 
+  // Variable compartida para rastrear la capa resaltada actualmente
+  let currentlyHighlightedLayer = null;
+
   const onEachFeature = (feature, layer) => {
     const p = feature.properties || {};
     const nombre = getNameFromProps(p);
@@ -543,7 +546,7 @@ export default function App(){
         SNBE. Sistema Nacional de Billetaje electrónico<br/>
       </div>
     `;
-    // Bind popup (still available on click) but also show on hover
+    // Bind popup que se abre al hacer clic
     layer.bindPopup(popupHtml, {closeButton: true, offset: [0, -10]});
 
     // Guardar el estilo original calculado
@@ -551,8 +554,32 @@ export default function App(){
     layer._originalStyle = originalStyle;
 
     layer.on({
-      mouseover: (e) => {
+      click: (e) => {
+        // Si hay otra capa resaltada, restaurar su estilo
+        if (currentlyHighlightedLayer && currentlyHighlightedLayer !== e.target) {
+          const prevOriginal = currentlyHighlightedLayer._originalStyle;
+          if (prevOriginal) {
+            const prevOptions = currentlyHighlightedLayer.options || {};
+            currentlyHighlightedLayer.setStyle({
+              fillColor: prevOptions.fillColor || prevOriginal.fillColor,
+              fillOpacity: prevOptions.fillOpacity !== undefined ? prevOptions.fillOpacity : prevOriginal.fillOpacity,
+              weight: prevOriginal.weight,
+              color: prevOriginal.color,
+              dashArray: prevOriginal.dashArray || '0'
+            });
+            Object.assign(currentlyHighlightedLayer.options, {
+              fillColor: prevOptions.fillColor || prevOriginal.fillColor,
+              fillOpacity: prevOptions.fillOpacity !== undefined ? prevOptions.fillOpacity : prevOriginal.fillOpacity,
+              weight: prevOriginal.weight,
+              color: prevOriginal.color,
+              dashArray: prevOriginal.dashArray || '0'
+            });
+          }
+        }
+
+        // Abrir popup
         e.target.openPopup();
+        
         // Obtener las propiedades actuales del estilo renderizado
         const currentOptions = e.target.options || {};
         // IMPORTANTE: Preservar explícitamente fillColor y fillOpacity
@@ -567,34 +594,43 @@ export default function App(){
         e.target.setStyle(newStyle);
         // Actualizar también las opciones para que se mantengan
         Object.assign(e.target.options, newStyle);
+        
+        // Marcar esta capa como la resaltada actualmente
+        currentlyHighlightedLayer = e.target;
+        
         // bring to front for visibility
         try { 
           if (e.target.bringToFront) {
             e.target.bringToFront(); 
-        }
+          }
         } catch(err){}
-      },
-      mouseout: (e) => {
-        e.target.closePopup();
-        // Solo restaurar las propiedades del borde, NO tocar el interior
-        const currentOptions = e.target.options || {};
-        const original = e.target._originalStyle || originalStyle;
-        // Solo cambiar las propiedades del borde, mantener fillColor y fillOpacity actuales
-        e.target.setStyle({
-          fillColor: currentOptions.fillColor || original.fillColor,
-          fillOpacity: currentOptions.fillOpacity !== undefined ? currentOptions.fillOpacity : original.fillOpacity,
-          weight: original.weight,
-          color: original.color,
-          dashArray: original.dashArray || '0'
-        });
-        // Actualizar también las opciones
-        Object.assign(e.target.options, {
-          fillColor: currentOptions.fillColor || original.fillColor,
-          fillOpacity: currentOptions.fillOpacity !== undefined ? currentOptions.fillOpacity : original.fillOpacity,
-          weight: original.weight,
-          color: original.color,
-          dashArray: original.dashArray || '0'
-        });
+
+        // Restaurar estilo cuando se cierra el popup
+        const restoreStyle = () => {
+          const closeOptions = e.target.options || {};
+          const closeOriginal = e.target._originalStyle || originalStyle;
+          e.target.setStyle({
+            fillColor: closeOptions.fillColor || closeOriginal.fillColor,
+            fillOpacity: closeOptions.fillOpacity !== undefined ? closeOptions.fillOpacity : closeOriginal.fillOpacity,
+            weight: closeOriginal.weight,
+            color: closeOriginal.color,
+            dashArray: closeOriginal.dashArray || '0'
+          });
+          Object.assign(e.target.options, {
+            fillColor: closeOptions.fillColor || closeOriginal.fillColor,
+            fillOpacity: closeOptions.fillOpacity !== undefined ? closeOptions.fillOpacity : closeOriginal.fillOpacity,
+            weight: closeOriginal.weight,
+            color: closeOriginal.color,
+            dashArray: closeOriginal.dashArray || '0'
+          });
+          if (currentlyHighlightedLayer === e.target) {
+            currentlyHighlightedLayer = null;
+          }
+        };
+
+        // Agregar listener para cuando se cierra el popup (solo una vez)
+        e.target.off('popupclose', restoreStyle);
+        e.target.on('popupclose', restoreStyle);
       }
     });
   };
