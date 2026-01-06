@@ -533,8 +533,10 @@ export default function App(){
         ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
         <b>🚌 OFERTA:</b><br>
         <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
+        ${false ? `
         <b>Empresas:</b> ${Number(p.num_empresas || 0).toLocaleString()}<br/>
         <b>Líneas:</b> ${Number(p.num_lineas || 0).toLocaleString()}
+        ` : ''}
         <br/><br/>
         <b>Fuentes:</b><br/>
         ${poblacion > 0 ? 'INE. CNPV 2022.<br/>' : ''}
@@ -954,13 +956,13 @@ export default function App(){
       pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
       currentX += colWidths.buses;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-      pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
-      currentX += colWidths.empresas;
+      // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
+      // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+      // currentX += colWidths.empresas;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-      pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
-      currentX += colWidths.lineas;
+      // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
+      // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+      // currentX += colWidths.lineas;
 
       pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
       pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
@@ -1004,12 +1006,12 @@ export default function App(){
           pdf.rect(currentX, yPosition - 5, colWidths.buses, 7, 'F');
           pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
           currentX += colWidths.buses;
-          pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-          pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
-          currentX += colWidths.empresas;
-          pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-          pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
-          currentX += colWidths.lineas;
+          // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
+          // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+          // currentX += colWidths.empresas;
+          // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
+          // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+          // currentX += colWidths.lineas;
           pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
           pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
           yPosition += 5;
@@ -1057,13 +1059,13 @@ export default function App(){
         pdf.text(row.buses.toLocaleString(), currentX + colWidths.buses / 2, yPosition, { align: 'right' });
         currentX += colWidths.buses;
 
-        // Empresas
-        pdf.text(String(row.numEmpresas > 0 ? row.numEmpresas : '-'), currentX + colWidths.empresas / 2, yPosition, { align: 'center' });
-        currentX += colWidths.empresas;
+        // // Empresas
+        // pdf.text(String(row.numEmpresas > 0 ? row.numEmpresas : '-'), currentX + colWidths.empresas / 2, yPosition, { align: 'center' });
+        // currentX += colWidths.empresas;
 
-        // Líneas
-        pdf.text(String(row.numLineas > 0 ? row.numLineas : '-'), currentX + colWidths.lineas / 2, yPosition, { align: 'center' });
-        currentX += colWidths.lineas;
+        // // Líneas
+        // pdf.text(String(row.numLineas > 0 ? row.numLineas : '-'), currentX + colWidths.lineas / 2, yPosition, { align: 'center' });
+        // currentX += colWidths.lineas;
 
         // Tasa de uso
         const penetracion = row.penetracion !== null ? row.penetracion.toFixed(1) : '-';
@@ -1143,8 +1145,8 @@ export default function App(){
               <option value="validaciones">Validaciones</option>
               <option value="porcentaje">Tasa de uso</option>
               <option value="buses">Buses</option>
-              <option value="empresas">Empresas</option>
-              <option value="lineas">Líneas</option>
+              {/* <option value="empresas">Empresas</option>
+              <option value="lineas">Líneas</option> */}
             </select>
           </label>
 
@@ -1392,14 +1394,14 @@ export default function App(){
                   Prom. diario (buses) {sortColumn === 'promedioBusesDiario' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'promedioBusesDiario' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
-                <th className="sortable" onClick={() => handleSort('empresas')} title="Clic para ordenar">
+                {/* <th className="sortable" onClick={() => handleSort('empresas')} title="Clic para ordenar">
                   Empresas {sortColumn === 'empresas' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'empresas' && <span style={{opacity: 0.3}}> ↕</span>}
                 </th>
                 <th className="sortable" onClick={() => handleSort('lineas')} title="Clic para ordenar">
                   Líneas {sortColumn === 'lineas' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'lineas' && <span style={{opacity: 0.3}}> ↕</span>}
-                </th>
+                </th> */}
                 <th className="sortable" onClick={() => handleSort('penetracion')} title="Clic para ordenar">
                   Tasa de uso {sortColumn === 'penetracion' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   {sortColumn !== 'penetracion' && <span style={{opacity: 0.3}}> ↕</span>}
@@ -1409,7 +1411,7 @@ export default function App(){
             <tbody>
               {filteredAndSortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan="11" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
+                  <td colSpan="9" style={{textAlign: 'center', padding: '20px', color: '#999'}}>
                     No se encontraron resultados
                   </td>
                 </tr>
@@ -1430,7 +1432,7 @@ export default function App(){
                     <td>{r.poblacion > 0 ? r.poblacion.toLocaleString() : '-'}</td>
                   <td>{r.buses.toLocaleString()}</td>
                   <td>{r.promedioBusesDiario > 0 ? r.promedioBusesDiario.toFixed(1) : '-'}</td>
-                    <td 
+                    {/* <td 
                       className="nowrap" 
                       style={{cursor: r.numEmpresas > 0 ? 'help' : 'default'}}
                       title={r.empresasTooltip}
@@ -1443,7 +1445,7 @@ export default function App(){
                       title={r.lineasTooltip}
                     >
                       {r.numLineas > 0 ? r.numLineas : '-'}
-                    </td>
+                    </td> */}
                   <td>{r.penetracion !== null ? r.penetracion.toFixed(1) : '-'}</td>
                 </tr>
                 ))
