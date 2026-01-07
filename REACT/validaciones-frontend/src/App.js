@@ -395,6 +395,11 @@ export default function App(){
       return;
     }
 
+    // Verificar si es el mes actual y mostrar advertencia sobre datos parciales
+    if (anio === anioActual && mes === mesActual) {
+      alert('Estos datos son parciales (actualizados al día de ayer). Los mismos son actualizados diariamente hasta el cierre del presente mes.');
+    }
+
     setLoading(true);
     try {
       const res = await axios.post(getApiUrl('/api/validaciones'), {
