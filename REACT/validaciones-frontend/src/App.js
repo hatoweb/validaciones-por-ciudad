@@ -383,14 +383,39 @@ export default function App(){
       alert('Por favor selecciona una franja operativa');
       return;
     }
+
+    // Validar si el mes/año seleccionado es futuro o no tiene datos disponibles
+    const ahora = new Date();
+    const mesActual = ahora.getMonth() + 1; // getMonth() devuelve 0-11
+    const anioActual = ahora.getFullYear();
+    
+    // Verificar si es un mes/año futuro
+    if (anio > anioActual || (anio === anioActual && mes > mesActual)) {
+      alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await axios.post(getApiUrl('/api/validaciones'), {
         mes, anio, id_franja: idFranja, incluir_barrios: incluirBarrios
       });
       if(res.data.error){
-        alert(res.data.error);
+        // Verificar si el error es por falta de datos
+        if (res.data.error.toLowerCase().includes('no hay datos') || 
+            res.data.error.toLowerCase().includes('sin datos') ||
+            res.data.error.toLowerCase().includes('datos no disponibles')) {
+          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+        } else {
+          alert(res.data.error);
+        }
       } else {
+        // Verificar si realmente hay datos
+        if (!res.data.geojson || !res.data.geojson.features || res.data.geojson.features.length === 0) {
+          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+          return;
+        }
+        
         // Limpiar la referencia anterior antes de actualizar
         if (geoJsonLayerRef.current) {
           geoJsonLayerRef.current.clearLayers();
@@ -413,8 +438,19 @@ export default function App(){
       console.error('Error completo:', err);
       console.error('Response data:', err.response?.data);
       console.error('Response status:', err.response?.status);
-      const errorMessage = getErrorMessage(err);
-      alert(errorMessage);
+      
+      // Verificar si es un error 404 o sin datos
+      if (err.response?.status === 404 || 
+          (err.response?.data?.error && (
+            err.response.data.error.toLowerCase().includes('no hay datos') ||
+            err.response.data.error.toLowerCase().includes('sin datos') ||
+            err.response.data.error.toLowerCase().includes('datos no disponibles')
+          ))) {
+        alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+      } else {
+        const errorMessage = getErrorMessage(err);
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
