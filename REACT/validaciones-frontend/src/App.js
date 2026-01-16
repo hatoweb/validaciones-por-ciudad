@@ -1002,6 +1002,8 @@ export default function App(){
       let currentX = startX;
 
       // Dibujar encabezado de tabla
+      // Asegurar que hay espacio suficiente antes del encabezado
+      yPosition += 2; // Espacio adicional antes del encabezado
       pdf.setFillColor(102, 126, 234); // Color del encabezado
       pdf.rect(currentX, yPosition - 5, colWidths.num, 7, 'F');
       pdf.setTextColor(255, 255, 255);
@@ -1044,7 +1046,8 @@ export default function App(){
       pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
       pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
 
-      yPosition += 5;
+      // Ajustar yPosition después del encabezado (altura del rectángulo + espacio)
+      yPosition += 7; // 5 (posición inicial) + 2 (espacio adicional)
       pdf.setTextColor(0, 0, 0);
       pdf.setFont(undefined, 'normal');
       pdf.setFontSize(7);
@@ -1091,7 +1094,8 @@ export default function App(){
           // currentX += colWidths.lineas;
           pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
           pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
-          yPosition += 5;
+          // Ajustar yPosition después del encabezado (altura del rectángulo + espacio)
+          yPosition += 7; // 5 (posición inicial) + 2 (espacio adicional)
           pdf.setTextColor(0, 0, 0);
           pdf.setFont(undefined, 'normal');
           pdf.setFontSize(7);
