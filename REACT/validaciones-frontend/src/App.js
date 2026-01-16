@@ -1004,50 +1004,54 @@ export default function App(){
       // Dibujar encabezado de tabla
       // Asegurar que hay espacio suficiente antes del encabezado
       yPosition += 2; // Espacio adicional antes del encabezado
+      const headerY = yPosition; // Guardar posición Y del encabezado
       pdf.setFillColor(102, 126, 234); // Color del encabezado
-      pdf.rect(currentX, yPosition - 5, colWidths.num, 7, 'F');
-      pdf.setTextColor(255, 255, 255);
+      pdf.setTextColor(255, 255, 255); // Color del texto blanco
       pdf.setFontSize(8);
-      pdf.text('#', currentX + colWidths.num / 2, yPosition - 1, { align: 'center' });
+      pdf.setFont(undefined, 'bold');
+      
+      // Dibujar rectángulos y texto del encabezado
+      pdf.rect(currentX, headerY - 5, colWidths.num, 7, 'F');
+      pdf.text('#', currentX + colWidths.num / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.num;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.nombre, 7, 'F');
-      pdf.text('Nombre', currentX + 2, yPosition - 1);
+      pdf.rect(currentX, headerY - 5, colWidths.nombre, 7, 'F');
+      pdf.text('Nombre', currentX + 2, headerY - 1);
       currentX += colWidths.nombre;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.validaciones, 7, 'F');
-      pdf.text('Valid.', currentX + colWidths.validaciones / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.validaciones, 7, 'F');
+      pdf.text('Valid.', currentX + colWidths.validaciones / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.validaciones;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.pasajeros, 7, 'F');
-      pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.pasajeros, 7, 'F');
+      pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.pasajeros;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.promedioPasajerosDiario, 7, 'F');
-      pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.promedioPasajerosDiario, 7, 'F');
+      pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.promedioPasajerosDiario;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.poblacion, 7, 'F');
-      pdf.text('Población', currentX + colWidths.poblacion / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.poblacion, 7, 'F');
+      pdf.text('Población', currentX + colWidths.poblacion / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.poblacion;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.buses, 7, 'F');
-      pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.buses, 7, 'F');
+      pdf.text('Buses Ún.', currentX + colWidths.buses / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.buses;
 
-      // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-      // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+      // pdf.rect(currentX, headerY - 5, colWidths.empresas, 7, 'F');
+      // pdf.text('Empresas', currentX + colWidths.empresas / 2, headerY - 1, { align: 'center' });
       // currentX += colWidths.empresas;
 
-      // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-      // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+      // pdf.rect(currentX, headerY - 5, colWidths.lineas, 7, 'F');
+      // pdf.text('Líneas', currentX + colWidths.lineas / 2, headerY - 1, { align: 'center' });
       // currentX += colWidths.lineas;
 
-      pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
-      pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
+      pdf.rect(currentX, headerY - 5, colWidths.penetracion, 7, 'F');
+      pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, headerY - 1, { align: 'center' });
 
       // Ajustar yPosition después del encabezado (altura del rectángulo + espacio)
-      yPosition += 7; // 5 (posición inicial) + 2 (espacio adicional)
+      yPosition = headerY + 7; // Posición del encabezado + altura del rectángulo (7) + espacio
       pdf.setTextColor(0, 0, 0);
       pdf.setFont(undefined, 'normal');
       pdf.setFontSize(7);
