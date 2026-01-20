@@ -568,13 +568,16 @@ export default function App(){
     const cantidadValidaciones = Number(p.cantidad_validaciones || 0);
     const cantidadPasajeros = Number(p.cantidad_pasajeros || 0);
     const cantidadBuses = Number(p.cantidad_buses || 0);
+    // Calcular tasa de uso (Pasajeros / Población * 100)
+    const tasaUso = poblacion > 0 && cantidadPasajeros > 0 ? ((cantidadPasajeros / poblacion) * 100) : null;
     const popupHtml = `
       <div style="min-width:180px">
         <b>${nombre}</b><br/>
         <b>📊 DEMANDA:</b><br>
         <b>Validaciones:</b> ${cantidadValidaciones.toLocaleString()}<br/>
         <b>Pasajeros:</b> ${cantidadPasajeros.toLocaleString()}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
-        ${poblacion > 0 ? `<b>Población:</b> ${poblacion.toLocaleString()}<br/>` : ''}
+        <b>Población:</b> ${poblacion > 0 ? poblacion.toLocaleString() : 'No disponible'}<br/>
+        <b>📊 Tasa de uso:</b> ${tasaUso !== null ? `${tasaUso.toFixed(1)}% (Pasajeros/Población)` : 'No calculable (sin población)'}<br/>
         <b>🚌 OFERTA:</b><br>
         <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
         ${false ? `
