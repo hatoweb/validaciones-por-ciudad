@@ -912,6 +912,27 @@ export default function App(){
     return totals.buses / dias;
   }, [totals, getDiasConDatos]);
 
+  // Calcular población total y tasa de uso total
+  const poblacionTotalYTasaUso = useMemo(() => {
+    if (!geojson || !geojson.features) {
+      return { poblacionTotal: 0, tasaUsoTotal: null };
+    }
+    
+    let poblacionTotal = 0;
+    geojson.features.forEach(f => {
+      const p = f.properties || {};
+      const poblacion = Number(p.POBLACION || p.poblacion || 0);
+      poblacionTotal += poblacion;
+    });
+    
+    const pasajerosTotal = typeof totals?.pasajeros === 'number' ? totals.pasajeros : 0;
+    const tasaUsoTotal = poblacionTotal > 0 && pasajerosTotal > 0 
+      ? ((pasajerosTotal / poblacionTotal) * 100) 
+      : null;
+    
+    return { poblacionTotal, tasaUsoTotal };
+  }, [geojson, totals?.pasajeros]);
+
   // Usar los totales únicos del backend
   const displayedTotals = {
     validaciones: totals?.validaciones ?? '-',
@@ -919,7 +940,9 @@ export default function App(){
     buses: totals?.buses ?? '-',
     desde_cache: totals?.desde_cache ? 'Sí' : 'No',
     promedioPasajerosDiario: promedioPasajerosDiarioTotal,
-    promedioBusesDiario: promedioBusesDiarioTotal
+    promedioBusesDiario: promedioBusesDiarioTotal,
+    poblacionTotal: poblacionTotalYTasaUso.poblacionTotal,
+    tasaUsoTotal: poblacionTotalYTasaUso.tasaUsoTotal
   };
 
   // Función para generar y descargar PDF
@@ -1296,6 +1319,12 @@ export default function App(){
             <h3>Totales del sistema en el periodo y franja seleccionada {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString('es-PY') : displayedTotals.validaciones}</div>
             <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString('es-PY') : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
+            {displayedTotals.poblacionTotal > 0 && (
+              <div><b>Población:</b> {displayedTotals.poblacionTotal.toLocaleString('es-PY')}</div>
+            )}
+            {displayedTotals.tasaUsoTotal !== null && (
+              <div><b>📊 Tasa de uso:</b> {displayedTotals.tasaUsoTotal.toFixed(1)}% (Pasajeros/Población)</div>
+            )}
             <div><b>Buses:</b> {typeof displayedTotals.buses === 'number' ? displayedTotals.buses.toLocaleString('es-PY') : displayedTotals.buses}{typeof displayedTotals.promedioBusesDiario === 'number' && displayedTotals.promedioBusesDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
             
             <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(0,0,0,0.1)'}}>
