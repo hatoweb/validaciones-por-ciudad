@@ -1005,49 +1005,54 @@ export default function App(){
       // Asegurar que hay espacio suficiente antes del encabezado
       yPosition += 2; // Espacio adicional antes del encabezado
       const headerY = yPosition; // Guardar posición Y del encabezado
-      pdf.setFillColor(102, 126, 234); // Color del encabezado
-      pdf.setTextColor(255, 255, 255); // Color del texto blanco
+      
+      // Configurar estilo del encabezado
+      pdf.setFillColor(102, 126, 234); // Color azul del fondo del encabezado
+      pdf.setTextColor(255, 255, 255); // Color blanco del texto
       pdf.setFontSize(8);
       pdf.setFont(undefined, 'bold');
       
-      // Dibujar rectángulos y texto del encabezado
+      // Dibujar todos los rectángulos del encabezado primero
       pdf.rect(currentX, headerY - 5, colWidths.num, 7, 'F');
+      currentX += colWidths.num;
+      pdf.rect(currentX, headerY - 5, colWidths.nombre, 7, 'F');
+      currentX += colWidths.nombre;
+      pdf.rect(currentX, headerY - 5, colWidths.validaciones, 7, 'F');
+      currentX += colWidths.validaciones;
+      pdf.rect(currentX, headerY - 5, colWidths.pasajeros, 7, 'F');
+      currentX += colWidths.pasajeros;
+      pdf.rect(currentX, headerY - 5, colWidths.promedioPasajerosDiario, 7, 'F');
+      currentX += colWidths.promedioPasajerosDiario;
+      pdf.rect(currentX, headerY - 5, colWidths.poblacion, 7, 'F');
+      currentX += colWidths.poblacion;
+      pdf.rect(currentX, headerY - 5, colWidths.buses, 7, 'F');
+      currentX += colWidths.buses;
+      // pdf.rect(currentX, headerY - 5, colWidths.empresas, 7, 'F');
+      // currentX += colWidths.empresas;
+      // pdf.rect(currentX, headerY - 5, colWidths.lineas, 7, 'F');
+      // currentX += colWidths.lineas;
+      pdf.rect(currentX, headerY - 5, colWidths.penetracion, 7, 'F');
+      
+      // Ahora dibujar el texto encima de los rectángulos
+      currentX = startX; // Resetear posición X
       pdf.text('#', currentX + colWidths.num / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.num;
-
-      pdf.rect(currentX, headerY - 5, colWidths.nombre, 7, 'F');
       pdf.text('Nombre', currentX + 2, headerY - 1);
       currentX += colWidths.nombre;
-
-      pdf.rect(currentX, headerY - 5, colWidths.validaciones, 7, 'F');
       pdf.text('Valid.', currentX + colWidths.validaciones / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.validaciones;
-
-      pdf.rect(currentX, headerY - 5, colWidths.pasajeros, 7, 'F');
       pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.pasajeros;
-
-      pdf.rect(currentX, headerY - 5, colWidths.promedioPasajerosDiario, 7, 'F');
       pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.promedioPasajerosDiario;
-
-      pdf.rect(currentX, headerY - 5, colWidths.poblacion, 7, 'F');
       pdf.text('Población', currentX + colWidths.poblacion / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.poblacion;
-
-      pdf.rect(currentX, headerY - 5, colWidths.buses, 7, 'F');
       pdf.text('Buses Ún.', currentX + colWidths.buses / 2, headerY - 1, { align: 'center' });
       currentX += colWidths.buses;
-
-      // pdf.rect(currentX, headerY - 5, colWidths.empresas, 7, 'F');
       // pdf.text('Empresas', currentX + colWidths.empresas / 2, headerY - 1, { align: 'center' });
       // currentX += colWidths.empresas;
-
-      // pdf.rect(currentX, headerY - 5, colWidths.lineas, 7, 'F');
       // pdf.text('Líneas', currentX + colWidths.lineas / 2, headerY - 1, { align: 'center' });
       // currentX += colWidths.lineas;
-
-      pdf.rect(currentX, headerY - 5, colWidths.penetracion, 7, 'F');
       pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, headerY - 1, { align: 'center' });
 
       // Ajustar yPosition después del encabezado (altura del rectángulo + espacio)
@@ -1063,43 +1068,58 @@ export default function App(){
           pdf.addPage();
           yPosition = margin;
           // Redibujar encabezado en nueva página
+          const newPageHeaderY = yPosition; // Guardar posición Y del encabezado en nueva página
           currentX = startX;
-          pdf.setFillColor(102, 126, 234);
-          pdf.setTextColor(255, 255, 255);
+          pdf.setFillColor(102, 126, 234); // Color azul del fondo
+          pdf.setTextColor(255, 255, 255); // Color blanco del texto
           pdf.setFont(undefined, 'bold');
           pdf.setFontSize(8);
           
-          pdf.rect(currentX, yPosition - 5, colWidths.num, 7, 'F');
-          pdf.text('#', currentX + colWidths.num / 2, yPosition - 1, { align: 'center' });
+          // Dibujar todos los rectángulos del encabezado primero
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.num, 7, 'F');
           currentX += colWidths.num;
-          pdf.rect(currentX, yPosition - 5, colWidths.nombre, 7, 'F');
-          pdf.text('Nombre', currentX + 2, yPosition - 1);
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.nombre, 7, 'F');
           currentX += colWidths.nombre;
-          pdf.rect(currentX, yPosition - 5, colWidths.validaciones, 7, 'F');
-          pdf.text('Valid.', currentX + colWidths.validaciones / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.validaciones, 7, 'F');
           currentX += colWidths.validaciones;
-          pdf.rect(currentX, yPosition - 5, colWidths.pasajeros, 7, 'F');
-          pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.pasajeros, 7, 'F');
           currentX += colWidths.pasajeros;
-          pdf.rect(currentX, yPosition - 5, colWidths.promedioPasajerosDiario, 7, 'F');
-          pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.promedioPasajerosDiario, 7, 'F');
           currentX += colWidths.promedioPasajerosDiario;
-          pdf.rect(currentX, yPosition - 5, colWidths.poblacion, 7, 'F');
-          pdf.text('Población', currentX + colWidths.poblacion / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.poblacion, 7, 'F');
           currentX += colWidths.poblacion;
-          pdf.rect(currentX, yPosition - 5, colWidths.buses, 7, 'F');
-          pdf.text('Buses Ún.', currentX + colWidths.buses / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.buses, 7, 'F');
           currentX += colWidths.buses;
-          // pdf.rect(currentX, yPosition - 5, colWidths.empresas, 7, 'F');
-          // pdf.text('Empresas', currentX + colWidths.empresas / 2, yPosition - 1, { align: 'center' });
+          // pdf.rect(currentX, newPageHeaderY - 5, colWidths.empresas, 7, 'F');
           // currentX += colWidths.empresas;
-          // pdf.rect(currentX, yPosition - 5, colWidths.lineas, 7, 'F');
-          // pdf.text('Líneas', currentX + colWidths.lineas / 2, yPosition - 1, { align: 'center' });
+          // pdf.rect(currentX, newPageHeaderY - 5, colWidths.lineas, 7, 'F');
           // currentX += colWidths.lineas;
-          pdf.rect(currentX, yPosition - 5, colWidths.penetracion, 7, 'F');
-          pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, yPosition - 1, { align: 'center' });
+          pdf.rect(currentX, newPageHeaderY - 5, colWidths.penetracion, 7, 'F');
+          
+          // Ahora dibujar el texto encima de los rectángulos
+          currentX = startX; // Resetear posición X
+          pdf.text('#', currentX + colWidths.num / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.num;
+          pdf.text('Nombre', currentX + 2, newPageHeaderY - 1);
+          currentX += colWidths.nombre;
+          pdf.text('Valid.', currentX + colWidths.validaciones / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.validaciones;
+          pdf.text('Pasaj. Ún.', currentX + colWidths.pasajeros / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.pasajeros;
+          pdf.text('Prom. diario', currentX + colWidths.promedioPasajerosDiario / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.promedioPasajerosDiario;
+          pdf.text('Población', currentX + colWidths.poblacion / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.poblacion;
+          pdf.text('Buses Ún.', currentX + colWidths.buses / 2, newPageHeaderY - 1, { align: 'center' });
+          currentX += colWidths.buses;
+          // pdf.text('Empresas', currentX + colWidths.empresas / 2, newPageHeaderY - 1, { align: 'center' });
+          // currentX += colWidths.empresas;
+          // pdf.text('Líneas', currentX + colWidths.lineas / 2, newPageHeaderY - 1, { align: 'center' });
+          // currentX += colWidths.lineas;
+          pdf.text('Tasa uso (%)', currentX + colWidths.penetracion / 2, newPageHeaderY - 1, { align: 'center' });
+          
           // Ajustar yPosition después del encabezado (altura del rectángulo + espacio)
-          yPosition += 7; // 5 (posición inicial) + 2 (espacio adicional)
+          yPosition = newPageHeaderY + 7; // Posición del encabezado + altura del rectángulo (7) + espacio
           pdf.setTextColor(0, 0, 0);
           pdf.setFont(undefined, 'normal');
           pdf.setFontSize(7);
