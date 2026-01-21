@@ -89,12 +89,44 @@ function getTurquoiseColor(intensity){
   return '#0f5f5a';
 }
 
-function getFeatureValue(feature, criterio){
+// Función auxiliar para normalizar nombres (definida antes de getFeatureValue para poder usarla)
+const normalizeNameForMatch = (name) => {
+  if (!name) return '';
+  return name.trim().toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/\s+/g, ' ') // Normalizar espacios
+    .trim();
+};
+
+function getFeatureValue(feature, criterio, poblacionData = null, incluirBarrios = false){
   const p = feature.properties || {};
   if(criterio === 'validaciones') return Number(p.cantidad_validaciones || 0);
   if(criterio === 'porcentaje'){
     const pasajeros = Number(p.cantidad_pasajeros || 0);
-    const poblacion = Number(p.POBLACION || p.poblacion || 0);
+    let poblacion = Number(p.POBLACION || p.poblacion || 0);
+    
+    // Si no hay población en las propiedades y no se incluyen barrios, buscar en el archivo de datos
+    if (poblacion === 0 && !incluirBarrios && poblacionData) {
+      const nombre = getNameFromProps(p);
+      const normalizedNombre = normalizeNameForMatch(nombre);
+      
+      // Buscar coincidencia exacta
+      if (poblacionData[normalizedNombre]) {
+        poblacion = poblacionData[normalizedNombre];
+      } else {
+        // Buscar coincidencia parcial
+        for (const [key, value] of Object.entries(poblacionData)) {
+          if (normalizeNameForMatch(key) === normalizedNombre || 
+              normalizedNombre.includes(normalizeNameForMatch(key)) ||
+              normalizeNameForMatch(key).includes(normalizedNombre)) {
+            poblacion = value;
+            break;
+          }
+        }
+      }
+    }
+    
     if(!poblacion || poblacion === 0) return 0;
     return (pasajeros / poblacion) * 100;
   }
@@ -257,6 +289,7 @@ export default function App(){
   const [showIndicadoresModal, setShowIndicadoresModal] = useState(false);
   const [opacity, setOpacity] = useState(0.9); // Estado para controlar la opacidad
   const [mapLayer, setMapLayer] = useState('street'); // Estado para la capa del mapa
+  const [poblacionData, setPoblacionData] = useState(null); // Diccionario de población por ciudad/distrito
 
   // Nombres de los meses
   const meses = [
@@ -324,6 +357,60 @@ export default function App(){
     // Mensaje genérico para otros errores
     return 'Ocurrió un error al obtener los datos. Por favor, intenta nuevamente. Si el problema persiste, contacta al administrador del sistema.';
   };
+
+  // Función para normalizar nombres de ciudades/distritos para hacer match
+  const normalizeName = (name) => {
+    if (!name) return '';
+    return name.trim().toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+      .replace(/\s+/g, ' ') // Normalizar espacios
+      .trim();
+  };
+
+  // Función para obtener población desde el archivo de datos
+  const getPoblacionFromData = (nombre) => {
+    if (!poblacionData || !nombre) return null;
+    const normalizedNombre = normalizeName(nombre);
+    
+    // Buscar coincidencia exacta
+    if (poblacionData[normalizedNombre]) {
+      return poblacionData[normalizedNombre];
+    }
+    
+    // Buscar coincidencia parcial (por si hay variaciones en el nombre)
+    for (const [key, value] of Object.entries(poblacionData)) {
+      if (normalizeName(key) === normalizedNombre || 
+          normalizedNombre.includes(normalizeName(key)) ||
+          normalizeName(key).includes(normalizedNombre)) {
+        return value;
+      }
+    }
+    
+    return null;
+  };
+
+  // Cargar datos de población al montar el componente
+  useEffect(() => {
+    const cargarPoblacion = async () => {
+      try {
+        const response = await fetch(getStaticUrl('/poblacion_distritos.json'));
+        if (response.ok) {
+          const data = await response.json();
+          // Convertir a diccionario con nombres normalizados como keys
+          const poblacionDict = {};
+          Object.entries(data).forEach(([key, value]) => {
+            const normalizedKey = normalizeName(key);
+            poblacionDict[normalizedKey] = value;
+          });
+          setPoblacionData(poblacionDict);
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar el archivo de población:', err);
+      }
+    };
+    cargarPoblacion();
+  }, []);
 
   // Cargar franjas operativas al montar el componente
   useEffect(() => {
@@ -468,17 +555,17 @@ export default function App(){
     if(!geojson) return {min:0,max:0};
     let min = Infinity, max = -Infinity;
     geojson.features.forEach(f => {
-      const v = getFeatureValue(f, criterio);
+      const v = getFeatureValue(f, criterio, poblacionData, incluirBarrios);
       if(v < min) min = v;
       if(v > max) max = v;
     });
     if(min === Infinity) min = 0;
     if(max === -Infinity) max = 0;
     return {min, max};
-  }, [geojson, criterio, stats]);
+  }, [geojson, criterio, stats, poblacionData, incluirBarrios]);
 
   const styleFeature = (feature) => {
-    const val = getFeatureValue(feature, criterio);
+    const val = getFeatureValue(feature, criterio, poblacionData, incluirBarrios);
     let color = '#f0f0f0';
     let intensity = 0;
     
@@ -524,7 +611,7 @@ export default function App(){
         const feature = layer.feature;
         if (feature) {
           // Recalcular estilo basado en el criterio actual
-          const val = getFeatureValue(feature, criterio);
+          const val = getFeatureValue(feature, criterio, poblacionData, incluirBarrios);
           let color = '#f0f0f0';
           let intensity = 0;
           
@@ -554,7 +641,7 @@ export default function App(){
         }
       });
     }
-  }, [criterio, computedStats, incluirBarrios, opacity, geojson]);
+  }, [criterio, computedStats, incluirBarrios, opacity, geojson, poblacionData]);
 
   // Variable compartida para rastrear la capa resaltada actualmente
   let currentlyHighlightedLayer = null;
@@ -562,7 +649,14 @@ export default function App(){
   const onEachFeature = (feature, layer) => {
     const p = feature.properties || {};
     const nombre = getNameFromProps(p);
-    const poblacion = Number(p.POBLACION || p.poblacion || 0);
+    // Obtener población: primero de las propiedades, luego del archivo de datos si no se incluyen barrios
+    let poblacion = Number(p.POBLACION || p.poblacion || 0);
+    if (poblacion === 0 && !incluirBarrios && poblacionData) {
+      const poblacionFromData = getPoblacionFromData(nombre);
+      if (poblacionFromData) {
+        poblacion = poblacionFromData;
+      }
+    }
     const promedioPasajerosDiario = Number(p.promedio_pasajeros_diario || 0);
     const promedioBusesDiario = Number(p.promedio_buses_diario || 0);
     const cantidadValidaciones = Number(p.cantidad_validaciones || 0);
@@ -689,10 +783,18 @@ export default function App(){
     if (!geojson) return [];
     return geojson.features.map(f => {
       const p = f.properties || {};
+      const nombre = getNameFromProps(p);
       // Use unique_passengers and unique_buses if available
       const pasajerosUnicos = p.unique_passengers ?? p.cantidad_pasajeros ?? 0;
       const busesUnicos = p.unique_buses ?? p.cantidad_buses ?? 0;
-      const poblacion = Number(p.POBLACION || p.poblacion || 0);
+      // Obtener población: primero de las propiedades, luego del archivo de datos si no se incluyen barrios
+      let poblacion = Number(p.POBLACION || p.poblacion || 0);
+      if (poblacion === 0 && !incluirBarrios && poblacionData) {
+        const poblacionFromData = getPoblacionFromData(nombre);
+        if (poblacionFromData) {
+          poblacion = poblacionFromData;
+        }
+      }
       
       // Calcular cantidad de empresas y líneas
       const empresasStr = p.empresas || '';
@@ -778,7 +880,7 @@ export default function App(){
         penetracion: poblacion > 0 ? ((Number(pasajerosUnicos) / poblacion) * 100) : null
       };
     });
-  }, [geojson]);
+  }, [geojson, poblacionData, incluirBarrios]);
 
   // Filtrar y ordenar las filas
   const filteredAndSortedRows = useMemo(() => {
@@ -921,7 +1023,15 @@ export default function App(){
     let poblacionTotal = 0;
     geojson.features.forEach(f => {
       const p = f.properties || {};
-      const poblacion = Number(p.POBLACION || p.poblacion || 0);
+      const nombre = getNameFromProps(p);
+      // Obtener población: primero de las propiedades, luego del archivo de datos si no se incluyen barrios
+      let poblacion = Number(p.POBLACION || p.poblacion || 0);
+      if (poblacion === 0 && !incluirBarrios && poblacionData) {
+        const poblacionFromData = getPoblacionFromData(nombre);
+        if (poblacionFromData) {
+          poblacion = poblacionFromData;
+        }
+      }
       poblacionTotal += poblacion;
     });
     
@@ -931,7 +1041,7 @@ export default function App(){
       : null;
     
     return { poblacionTotal, tasaUsoTotal };
-  }, [geojson, totals?.pasajeros]);
+  }, [geojson, totals?.pasajeros, poblacionData, incluirBarrios]);
 
   // Usar los totales únicos del backend
   const displayedTotals = {
