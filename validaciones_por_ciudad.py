@@ -426,6 +426,19 @@ def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nomb
             'empresas': row.get('empresas', '') or '',
             'lineas': row.get('lineas', '') or ''
         }
+        # Guardar validaciones por empresa si existen
+        if 'validaciones_por_empresa' in row and row.get('validaciones_por_empresa'):
+            try:
+                val_emp_val = row['validaciones_por_empresa']
+                if isinstance(val_emp_val, str):
+                    area_data['validaciones_por_empresa'] = json.loads(val_emp_val)
+                else:
+                    area_data['validaciones_por_empresa'] = val_emp_val
+            except:
+                area_data['validaciones_por_empresa'] = []
+        else:
+            area_data['validaciones_por_empresa'] = []
+
         # Guardar relaciones empresa-línea si existen
         if 'empresa_lineas' in row and row.get('empresa_lineas'):
             try:
@@ -493,14 +506,24 @@ def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre):
         gdf_resultado['num_empresas'] = gdf_resultado['empresas'].apply(lambda x: len([e.strip() for e in x.split(',') if e.strip()]) if x else 0)
         gdf_resultado['num_lineas'] = gdf_resultado['lineas'].apply(lambda x: len([l.strip() for l in x.split(',') if l.strip()]) if x else 0)
         
-        # Cargar relaciones empresa-línea desde cache si existen
+        # Cargar relaciones empresa-línea y validaciones por empresa desde cache si existen
         empresa_lineas_cache = {}
         linea_empresas_cache = {}
+        val_emp_cache = {}
         for d in cache_data['areas']:
             if 'empresa_lineas' in d and d['empresa_lineas']:
                 empresa_lineas_cache[d['nombre']] = d['empresa_lineas']
             if 'linea_empresas' in d and d['linea_empresas']:
                 linea_empresas_cache[d['nombre']] = d['linea_empresas']
+            if 'validaciones_por_empresa' in d and d['validaciones_por_empresa']:
+                val_emp_cache[d['nombre']] = d['validaciones_por_empresa']
+        
+        if val_emp_cache:
+            gdf_resultado['validaciones_por_empresa'] = gdf_resultado[col_nombre].map(
+                lambda x: json.dumps(val_emp_cache.get(x, []))
+            ).fillna(json.dumps([]))
+        else:
+            gdf_resultado['validaciones_por_empresa'] = json.dumps([])
         
         if empresa_lineas_cache:
             gdf_resultado['empresa_lineas'] = gdf_resultado[col_nombre].map(
@@ -877,6 +900,28 @@ def obtener_validaciones(mes, anio, id_franja):
         print(traceback.format_exc())
         raise
 
+def obtener_mapeo_eots():
+    """Consulta la tabla eots para obtener mapeo de entidad (hex) a nombre de empresa"""
+    try:
+        conn = psycopg2.connect(**DB_RUTAS_CONFIG)
+        cur = conn.cursor()
+        cur.execute("SELECT id_eot_vmt_hex, eot_nombre FROM eots WHERE id_eot_vmt_hex IS NOT NULL;")
+        eot_map = {}
+        for row in cur.fetchall():
+            if row[0] and row[1]:
+                h = str(row[0]).strip().upper()
+                nom = str(row[1]).strip()
+                eot_map[h] = nom
+                eot_map[h.lower()] = nom
+                if len(h) <= 4:
+                    eot_map[h.zfill(4)] = nom
+                    eot_map[h.zfill(4).lower()] = nom
+        conn.close()
+        return eot_map
+    except Exception as e:
+        print(f"⚠️ Error al obtener mapeo de eots: {e}")
+        return {}
+
 def obtener_empresas_lineas_por_area(gdf_areas):
     """Obtiene las empresas y líneas que pasan por cada área desde la base de datos de rutas"""
     
@@ -1025,6 +1070,29 @@ def asignar_validaciones_a_areas(df_validaciones, gdf_areas, col_nombre):
     conteo_completo = conteo_completo.merge(promedio_buses, on=col_nombre, how='outer')
     conteo_completo = conteo_completo.merge(promedio_pasajeros, on=col_nombre, how='outer')
     
+    # Mapear entidad de cada validación a nombre de empresa y calcular desglose por empresa
+    print("Calculando desglose de validaciones por empresa...")
+    eot_map = obtener_mapeo_eots()
+    
+    def normalizar_empresa(ent):
+        if pd.isna(ent):
+            return "Empresa No Identificada"
+        ent_str = str(ent).strip().upper()
+        if not ent_str or ent_str in ('NAN', 'NONE', 'NULL'):
+            return "Empresa No Identificada"
+        return eot_map.get(ent_str) or eot_map.get(ent_str.zfill(4)) or f"Empresa ({ent_str})"
+    
+    validaciones_por_empresa_dict = {}
+    if 'entidad' in validaciones_con_area.columns and col_nombre in validaciones_con_area.columns:
+        validaciones_con_area['empresa_nombre'] = validaciones_con_area['entidad'].apply(normalizar_empresa)
+        conteo_empresa = validaciones_con_area.dropna(subset=[col_nombre]).groupby([col_nombre, 'empresa_nombre']).size().reset_index(name='validaciones')
+        for area_val, grupo in conteo_empresa.groupby(col_nombre):
+            grupo_ord = grupo.sort_values(by='validaciones', ascending=False)
+            validaciones_por_empresa_dict[area_val] = [
+                {'empresa': row['empresa_nombre'], 'validaciones': int(row['validaciones'])}
+                for _, row in grupo_ord.iterrows()
+            ]
+
     # Unir con geometrías
     gdf_resultado = gdf_areas.merge(conteo_completo, on=col_nombre, how='left')
     gdf_resultado['cantidad_validaciones'] = gdf_resultado['cantidad_validaciones'].fillna(0).astype(int)
@@ -1032,6 +1100,9 @@ def asignar_validaciones_a_areas(df_validaciones, gdf_areas, col_nombre):
     gdf_resultado['cantidad_buses'] = gdf_resultado['cantidad_buses'].fillna(0).astype(int)
     gdf_resultado['promedio_buses_diario'] = gdf_resultado['promedio_buses_diario'].fillna(0.0).astype(float)
     gdf_resultado['promedio_pasajeros_diario'] = gdf_resultado['promedio_pasajeros_diario'].fillna(0.0).astype(float)
+    gdf_resultado['validaciones_por_empresa'] = gdf_resultado[col_nombre].map(
+        lambda x: json.dumps(validaciones_por_empresa_dict.get(x, []))
+    ).fillna(json.dumps([]))
     
     # Obtener empresas y líneas que pasan por cada área
     print("Consultando empresas y líneas por área...")
@@ -2488,6 +2559,28 @@ def api_validaciones():
                             linea_empresas_consolidado = {k: sorted(list(v)) for k, v in linea_empresas_consolidado.items()}
                             primer_registro['empresa_lineas'] = json.dumps(empresa_lineas_consolidado)
                             primer_registro['linea_empresas'] = json.dumps(linea_empresas_consolidado)
+                        
+                        # Consolidar validaciones por empresa si existen
+                        if 'validaciones_por_empresa' in grupo.columns:
+                            emp_val_consolidados = {}
+                            for _, row in grupo.iterrows():
+                                try:
+                                    val_emp_raw = row.get('validaciones_por_empresa')
+                                    if val_emp_raw:
+                                        lista_emp = json.loads(val_emp_raw) if isinstance(val_emp_raw, str) else val_emp_raw
+                                        for item in lista_emp:
+                                            emp = item.get('empresa')
+                                            cnt = item.get('validaciones', 0)
+                                            if emp:
+                                                emp_val_consolidados[emp] = emp_val_consolidados.get(emp, 0) + cnt
+                                except:
+                                    pass
+                            lista_ordenada = [
+                                {'empresa': k, 'validaciones': v}
+                                for k, v in sorted(emp_val_consolidados.items(), key=lambda x: x[1], reverse=True)
+                            ]
+                            primer_registro['validaciones_por_empresa'] = json.dumps(lista_ordenada)
+                        
                         grupos_consolidados.append(primer_registro)
                 
                 if grupos_consolidados:

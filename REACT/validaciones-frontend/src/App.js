@@ -664,24 +664,72 @@ export default function App(){
     const cantidadBuses = Number(p.cantidad_buses || 0);
     // Calcular tasa de uso (Pasajeros / Población * 100)
     const tasaUso = poblacion > 0 && cantidadPasajeros > 0 ? ((cantidadPasajeros / poblacion) * 100) : null;
+    // Obtener desglose de validaciones por empresa
+    let validacionesPorEmpresa = [];
+    if (p.validaciones_por_empresa) {
+      try {
+        validacionesPorEmpresa = typeof p.validaciones_por_empresa === 'string'
+          ? JSON.parse(p.validaciones_por_empresa)
+          : p.validaciones_por_empresa;
+      } catch (e) {
+        console.warn('Error al parsear validaciones_por_empresa:', e);
+      }
+    }
+
     const popupHtml = `
-      <div style="min-width:180px">
-        <b>${nombre}</b><br/>
-        <b>📊 DEMANDA:</b><br>
-        <b>Validaciones:</b> ${cantidadValidaciones.toLocaleString()}<br/>
-        <b>Pasajeros:</b> ${cantidadPasajeros.toLocaleString()}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
-        <b>Población:</b> ${poblacion > 0 ? poblacion.toLocaleString() : 'No disponible'}<br/>
-        <b>📊 Tasa de uso:</b> ${tasaUso !== null ? `${tasaUso.toFixed(1)}% (Pasajeros/Población)` : 'No calculable (sin población)'}<br/>
-        <b>🚌 OFERTA:</b><br>
-        <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
-        ${false ? `
-        <b>Empresas:</b> ${Number(p.num_empresas || 0).toLocaleString()}<br/>
-        <b>Líneas:</b> ${Number(p.num_lineas || 0).toLocaleString()}
-        ` : ''}
-        <br/><br/>
-        <b>Fuentes:</b><br/>
-        ${poblacion > 0 ? 'INE. CNPV 2022.<br/>' : ''}
-        SNBE. Sistema Nacional de Billetaje electrónico<br/>
+      <div style="min-width: 250px; max-width: 330px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <b style="font-size: 14px; color: #0f172a;">${nombre}</b><br/>
+        <div style="margin-top: 4px; font-size: 12px; line-height: 1.5;">
+          <b>📊 DEMANDA:</b><br/>
+          <b>Validaciones:</b> ${cantidadValidaciones.toLocaleString()}<br/>
+          <b>Pasajeros:</b> ${cantidadPasajeros.toLocaleString()}${promedioPasajerosDiario > 0 ? ` / Prom. diario: ${promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
+          <b>Población:</b> ${poblacion > 0 ? poblacion.toLocaleString() : 'No disponible'}<br/>
+          <b>📊 Tasa de uso:</b> ${tasaUso !== null ? `${tasaUso.toFixed(1)}% (Pasajeros/Población)` : 'No calculable (sin población)'}<br/>
+          <b>🚌 OFERTA:</b><br/>
+          <b>Buses:</b> ${cantidadBuses.toLocaleString()}${promedioBusesDiario > 0 ? ` / Prom. diario: ${promedioBusesDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}<br/>
+        </div>
+
+        ${validacionesPorEmpresa && validacionesPorEmpresa.length > 0 ? `
+          <div style="margin-top: 8px; border-top: 1px solid #cbd5e1; padding-top: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <b style="font-size: 12px; color: #0f172a;">🏢 Validaciones por Empresa:</b>
+              <span style="font-size: 11px; color: #64748b; font-weight: 600;">(${validacionesPorEmpresa.length} emp.)</span>
+            </div>
+            <div style="max-height: 160px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 4px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead style="position: sticky; top: 0; background-color: #f1f5f9; z-index: 1;">
+                  <tr style="border-bottom: 1px solid #cbd5e1; color: #475569;">
+                    <th style="padding: 4px 6px; text-align: left; font-weight: 600;">Empresa</th>
+                    <th style="padding: 4px 6px; text-align: right; font-weight: 600;">Val.</th>
+                    <th style="padding: 4px 6px; text-align: right; font-weight: 600;">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${validacionesPorEmpresa.map((item, idx) => {
+                    const pct = cantidadValidaciones > 0 ? ((item.validaciones / cantidadValidaciones) * 100).toFixed(1) : '0.0';
+                    return `
+                      <tr style="border-bottom: 1px solid #f1f5f9; ${idx % 2 === 0 ? 'background-color: #f8fafc;' : 'background-color: #ffffff;'}">
+                        <td style="padding: 3px 6px; text-align: left; max-width: 140px; word-break: break-word;" title="${item.empresa}">${item.empresa}</td>
+                        <td style="padding: 3px 6px; text-align: right; font-weight: 600; white-space: nowrap; color: #0284c7;">${item.validaciones.toLocaleString()}</td>
+                        <td style="padding: 3px 6px; text-align: right; color: #64748b; white-space: nowrap;">${pct}%</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : `
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8; font-style: italic;">
+            Sin validaciones por empresa registradas
+          </div>
+        `}
+
+        <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 4px; font-size: 10px; color: #64748b;">
+          <b>Fuentes:</b><br/>
+          ${poblacion > 0 ? 'INE. CNPV 2022.<br/>' : ''}
+          SNBE. Sistema Nacional de Billetaje electrónico<br/>
+        </div>
       </div>
     `;
     // Bind popup que se abre al hacer clic
