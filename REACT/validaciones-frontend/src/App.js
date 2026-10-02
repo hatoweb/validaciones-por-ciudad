@@ -164,7 +164,7 @@ function getNameFromProps(props){
 }
 
 // Componente para acceder a la instancia del mapa
-function MapController({ centerMap, zoomToFeature, geoJsonLayerRef, geojson }) {
+function MapController({ centerMap, zoomToFeature, geoJsonLayerRef, geojson, itinerariosLayerRef, itinerariosGeojson }) {
   const map = useMap();
   
   // Ajustar bounds automáticamente cuando se carga el GeoJSON
@@ -200,6 +200,40 @@ function MapController({ centerMap, zoomToFeature, geoJsonLayerRef, geojson }) {
       }, 500);
     }
   }, [geojson, geoJsonLayerRef, map]);
+
+  // Ajustar bounds automáticamente cuando se cargan itinerarios de una empresa
+  useEffect(() => {
+    if (itinerariosLayerRef && itinerariosLayerRef.current && itinerariosGeojson && itinerariosGeojson.features && itinerariosGeojson.features.length > 0) {
+      const timer = setTimeout(() => {
+        try {
+          let bounds = null;
+          itinerariosLayerRef.current.eachLayer((layer) => {
+            if (layer.getBounds) {
+              const layerBounds = layer.getBounds();
+              if (layerBounds && layerBounds.isValid()) {
+                if (!bounds) {
+                  bounds = L.latLngBounds(layerBounds.getSouthWest(), layerBounds.getNorthEast());
+                } else {
+                  bounds.extend(layerBounds);
+                }
+              }
+            }
+          });
+          
+          if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds, { 
+              padding: [30, 30], 
+              maxZoom: 14,
+              animate: true
+            });
+          }
+        } catch (error) {
+          console.warn('Error ajustando bounds de itinerarios:', error);
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [itinerariosGeojson, itinerariosLayerRef, map]);
   
   useEffect(() => {
     if (centerMap && zoomToFeature) {
@@ -366,6 +400,16 @@ export default function App(){
   const [opacity, setOpacity] = useState(0.9); // Estado para controlar la opacidad
   const [mapLayer, setMapLayer] = useState('street'); // Estado para la capa del mapa
   const [poblacionData, setPoblacionData] = useState(null); // Diccionario de población por ciudad/distrito
+
+  // Estado para funcionalidad de mostrar itinerarios por empresa
+  const [mostrarItinerarios, setMostrarItinerarios] = useState(false);
+  const [empresasItinerarios, setEmpresasItinerarios] = useState([]);
+  const [selectedEmpresa, setSelectedEmpresa] = useState('');
+  const [itinerariosGeojson, setItinerariosGeojson] = useState(null);
+  const [loadingEmpresasItinerarios, setLoadingEmpresasItinerarios] = useState(false);
+  const [loadingItinerarios, setLoadingItinerarios] = useState(false);
+  const [filtroItinerarioLinea, setFiltroItinerarioLinea] = useState('todas');
+  const [filtroItinerarioSentido, setFiltroItinerarioSentido] = useState('todos');
 
   // Nombres de los meses
   const meses = [
@@ -726,6 +770,157 @@ export default function App(){
 
   // Ref para almacenar referencias de las capas
   const geoJsonLayerRef = useRef(null);
+  const itinerariosLayerRef = useRef(null);
+
+  // Líneas disponibles dentro de los itinerarios de la empresa seleccionada
+  const lineasDisponibles = useMemo(() => {
+    if (!itinerariosGeojson || !itinerariosGeojson.features) return [];
+    const setLineas = new Set();
+    itinerariosGeojson.features.forEach(f => {
+      const l = f.properties?.linea;
+      if (l) setLineas.add(String(l));
+    });
+    return Array.from(setLineas).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [itinerariosGeojson]);
+
+  // Itinerarios filtrados por línea y/o sentido
+  const filteredItinerariosGeojson = useMemo(() => {
+    if (!itinerariosGeojson || !itinerariosGeojson.features) return null;
+    const filtered = itinerariosGeojson.features.filter(f => {
+      const p = f.properties || {};
+      if (filtroItinerarioLinea !== 'todas' && String(p.linea) !== String(filtroItinerarioLinea)) {
+        return false;
+      }
+      if (filtroItinerarioSentido !== 'todos') {
+        const sentido = (p.sentido || '').toLowerCase();
+        if (filtroItinerarioSentido === 'ida' && !sentido.includes('ida')) return false;
+        if (filtroItinerarioSentido === 'vuelta' && !sentido.includes('vuelta')) return false;
+        if (filtroItinerarioSentido === 'circular' && !sentido.includes('circular')) return false;
+      }
+      return true;
+    });
+    return {
+      ...itinerariosGeojson,
+      features: filtered
+    };
+  }, [itinerariosGeojson, filtroItinerarioLinea, filtroItinerarioSentido]);
+
+  // Handler para activar/desactivar itinerarios
+  const handleToggleItinerarios = async (checked) => {
+    setMostrarItinerarios(checked);
+    if (checked && empresasItinerarios.length === 0) {
+      setLoadingEmpresasItinerarios(true);
+      try {
+        const res = await axios.get(getApiUrl('/api/empresas_itinerarios'));
+        if (res.data && res.data.empresas) {
+          setEmpresasItinerarios(res.data.empresas);
+        }
+      } catch (err) {
+        console.error('Error al cargar empresas de itinerarios:', err);
+        alert('Error al cargar la lista de empresas: ' + getErrorMessage(err));
+      } finally {
+        setLoadingEmpresasItinerarios(false);
+      }
+    }
+  };
+
+  // Handler para seleccionar empresa
+  const handleEmpresaChange = async (codCatalogo) => {
+    setSelectedEmpresa(codCatalogo);
+    setFiltroItinerarioLinea('todas');
+    setFiltroItinerarioSentido('todos');
+    if (!codCatalogo) {
+      setItinerariosGeojson(null);
+      return;
+    }
+    setLoadingItinerarios(true);
+    try {
+      const res = await axios.get(getApiUrl(`/api/itinerarios?cod_catalogo=${codCatalogo}`));
+      if (res.data) {
+        setItinerariosGeojson(res.data);
+      }
+    } catch (err) {
+      console.error('Error al cargar itinerarios:', err);
+      alert('Error al cargar los itinerarios: ' + getErrorMessage(err));
+      setItinerariosGeojson(null);
+    } finally {
+      setLoadingItinerarios(false);
+    }
+  };
+
+  // Estilo visual para los trazados de itinerarios
+  const styleItinerario = (feature) => {
+    const sentido = (feature.properties?.sentido || '').toLowerCase();
+    let color = '#0284c7'; // Azul para Ida
+    let dashArray = undefined;
+
+    if (sentido.includes('vuelta')) {
+      color = '#ea580c'; // Naranja para Vuelta
+      dashArray = '7, 7';
+    } else if (sentido.includes('circular')) {
+      color = '#9333ea'; // Púrpura para Circular
+      dashArray = '3, 6';
+    }
+
+    return {
+      color: color,
+      weight: 4,
+      opacity: 0.9,
+      dashArray: dashArray,
+      lineCap: 'round',
+      lineJoin: 'round'
+    };
+  };
+
+  // Interacción y tooltips de los itinerarios
+  const onEachItinerarioFeature = (feature, layer) => {
+    const p = feature.properties || {};
+    const linea = p.linea || 'S/N';
+    const ramal = p.ramal !== undefined && p.ramal !== null && p.ramal !== '' ? `Ramal ${p.ramal}` : '';
+    const identificacion = p.identificacion || '';
+    const sentido = (p.sentido || '').toUpperCase();
+    const origen = p.origen || '';
+    const destino = p.destino || '';
+    const empresa = p.eot_nombre || '';
+    const rutaHex = p.ruta_hex || '';
+
+    const sentidoColor = sentido === 'IDA' ? '#0284c7' : (sentido === 'VUELTA' ? '#ea580c' : '#9333ea');
+
+    const popupContent = `
+      <div style="font-family: inherit; font-size: 13px; line-height: 1.4; min-width: 220px;">
+        <div style="font-weight: 700; color: ${sentidoColor}; font-size: 14px; border-bottom: 2px solid ${sentidoColor}33; padding-bottom: 4px; margin-bottom: 6px;">
+          🚌 Línea ${linea} ${ramal ? `• ${ramal}` : ''}
+        </div>
+        <div style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; background: ${sentidoColor}15; color: ${sentidoColor}; margin-bottom: 6px;">
+          ${sentido || 'TRAYECTO'}
+        </div>
+        ${identificacion ? `<div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${identificacion}</div>` : ''}
+        ${origen && destino ? `<div style="color: #475569; font-size: 12px; margin-bottom: 4px;">📍 <b>Origen:</b> ${origen}<br/>🏁 <b>Destino:</b> ${destino}</div>` : ''}
+        <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
+          🏢 ${empresa}<br/>
+          🏷️ <b>Código de Ruta:</b> <code>${rutaHex}</code>
+        </div>
+      </div>
+    `;
+
+    layer.bindPopup(popupContent, { maxWidth: 300, className: 'itinerario-popup' });
+    layer.bindTooltip(`Línea ${linea} ${ramal ? `(${ramal})` : ''} - ${identificacion || 'Itinerario'} [${sentido}]`, { sticky: true, className: 'itinerario-quick-tooltip' });
+
+    layer.on({
+      mouseover: (e) => {
+        const l = e.target;
+        l.setStyle({
+          weight: 7,
+          opacity: 1
+        });
+        if (l.bringToFront) l.bringToFront();
+      },
+      mouseout: (e) => {
+        const l = e.target;
+        l.setStyle(styleItinerario(feature));
+      }
+    });
+  };
   // Refs para generar PDF
   const headerRef = useRef(null);
   const tableRef = useRef(null);
@@ -1668,6 +1863,15 @@ export default function App(){
             <input type="checkbox" checked={incluirBarrios} onChange={e=>setIncluirBarrios(e.target.checked)} /> Incluir Barrios
           </label>
 
+          <label className={`control-checkbox itinerarios-toggle-label ${mostrarItinerarios ? 'active' : ''}`} title="Visualizar trazado de itinerarios por empresa de transporte">
+            <input 
+              type="checkbox" 
+              checked={mostrarItinerarios} 
+              onChange={e => handleToggleItinerarios(e.target.checked)} 
+            /> 
+            🛣️ Mostrar itinerarios
+          </label>
+
           <button className="btn" onClick={fetchData} disabled={loading}>{loading ? 'Cargando...' : 'Obtener Datos'}</button>
 
           <label className="control-criterio">
@@ -1691,25 +1895,127 @@ export default function App(){
         </div>
       </header>
 
+      {mostrarItinerarios && (
+        <div className="itinerarios-toolbar card">
+          <div className="itinerarios-toolbar-left">
+            <span className="itinerarios-toolbar-title">
+              <span className="itinerarios-icon">🚌</span>
+              <b>Empresa:</b>
+            </span>
+
+            {loadingEmpresasItinerarios ? (
+              <span className="itinerarios-loading-text">Cargando empresas...</span>
+            ) : (
+              <select 
+                className="itinerarios-empresa-select"
+                value={selectedEmpresa}
+                onChange={e => handleEmpresaChange(e.target.value)}
+              >
+                <option value="">-- Seleccionar Empresa ({empresasItinerarios.length} disponibles) --</option>
+                {empresasItinerarios.map(emp => (
+                  <option key={emp.cod_catalogo} value={emp.cod_catalogo}>
+                    {emp.eot_nombre} {emp.eot_linea ? `(Línea ${emp.eot_linea})` : ''} — {emp.total_itinerarios} itinerarios
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {selectedEmpresa && (
+              <>
+                {lineasDisponibles.length > 1 && (
+                  <select
+                    className="itinerarios-filtro-select"
+                    value={filtroItinerarioLinea}
+                    onChange={e => setFiltroItinerarioLinea(e.target.value)}
+                    title="Filtrar por línea"
+                  >
+                    <option value="todas">Todas las líneas ({lineasDisponibles.length})</option>
+                    {lineasDisponibles.map(lin => (
+                      <option key={lin} value={lin}>Línea {lin}</option>
+                    ))}
+                  </select>
+                )}
+
+                <select
+                  className="itinerarios-filtro-select"
+                  value={filtroItinerarioSentido}
+                  onChange={e => setFiltroItinerarioSentido(e.target.value)}
+                  title="Filtrar por sentido de circulación"
+                >
+                  <option value="todos">Todos los sentidos</option>
+                  <option value="ida">🟦 Solo Ida (Sólido)</option>
+                  <option value="vuelta">🟧 Solo Vuelta (Discontinuo)</option>
+                  <option value="circular">🟪 Circular</option>
+                </select>
+              </>
+            )}
+          </div>
+
+          <div className="itinerarios-toolbar-right">
+            {loadingItinerarios && (
+              <span className="itinerarios-badge loading">Cargando trazados...</span>
+            )}
+
+            {!loadingItinerarios && selectedEmpresa && filteredItinerariosGeojson && (
+              <span className="itinerarios-badge count">
+                {filteredItinerariosGeojson.features.length} {filteredItinerariosGeojson.features.length === 1 ? 'itinerario' : 'itinerarios'} en pantalla
+              </span>
+            )}
+
+            {selectedEmpresa && (
+              <div className="itinerarios-mini-legend">
+                <span className="legend-chip ida"><span className="line-sample ida"></span> Ida</span>
+                <span className="legend-chip vuelta"><span className="line-sample vuelta"></span> Vuelta</span>
+                <span className="legend-chip circular"><span className="line-sample circular"></span> Circular</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <main className="content">
         <section className="map-area card">
-          {geojson ? (
+          {geojson || (mostrarItinerarios && filteredItinerariosGeojson && filteredItinerariosGeojson.features.length > 0) ? (
             <MapContainer center={[-25.3, -57.6]} zoom={11} className="responsive-map" style={{borderRadius:8}}>
               <TileLayer 
                 url={mapLayers[mapLayer].url}
                 attribution={mapLayers[mapLayer].attribution}
               />
-              <MapController centerMap={centerMap} zoomToFeature={zoomToFeature} geoJsonLayerRef={geoJsonLayerRef} geojson={geojson} />
-              <GeoJSON 
-                key={`geojson-${geojsonKey}-${tipoFiltroHorario === 'franja' ? idFranja : `${horaDesde}-${horaHasta}-${tipoDia}`}-${tipoFiltroFecha === 'mes' ? `${mes}-${anio}` : `${fechaDesde}-${fechaHasta}`}`}
-                ref={geoJsonLayerRef}
-                data={geojson} 
-                style={styleFeature} 
-                onEachFeature={onEachFeature}
+              <MapController 
+                centerMap={centerMap} 
+                zoomToFeature={zoomToFeature} 
+                geoJsonLayerRef={geoJsonLayerRef} 
+                geojson={geojson}
+                itinerariosLayerRef={itinerariosLayerRef}
+                itinerariosGeojson={filteredItinerariosGeojson}
               />
+              {geojson && (
+                <GeoJSON 
+                  key={`geojson-${geojsonKey}-${tipoFiltroHorario === 'franja' ? idFranja : `${horaDesde}-${horaHasta}-${tipoDia}`}-${tipoFiltroFecha === 'mes' ? `${mes}-${anio}` : `${fechaDesde}-${fechaHasta}`}`}
+                  ref={geoJsonLayerRef}
+                  data={geojson} 
+                  style={styleFeature} 
+                  onEachFeature={onEachFeature}
+                />
+              )}
+              {mostrarItinerarios && filteredItinerariosGeojson && (
+                <GeoJSON
+                  key={`itinerarios-${selectedEmpresa}-${filtroItinerarioLinea}-${filtroItinerarioSentido}-${filteredItinerariosGeojson.features.length}`}
+                  ref={itinerariosLayerRef}
+                  data={filteredItinerariosGeojson}
+                  style={styleItinerario}
+                  onEachFeature={onEachItinerarioFeature}
+                />
+              )}
             </MapContainer>
           ) : (
-            <div className="map-placeholder">Mapa sin datos. Haz clic en "Obtener Datos".</div>
+            <div className="map-placeholder">
+              {mostrarItinerarios ? (
+                <span>Selecciona una empresa en la barra de itinerarios para visualizar sus recorridos en el mapa.</span>
+              ) : (
+                <span>Mapa sin datos. Haz clic en "Obtener Datos" o activa "Mostrar itinerarios".</span>
+              )}
+            </div>
           )}
         </section>
 

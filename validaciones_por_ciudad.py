@@ -2243,6 +2243,137 @@ def api_franjas_operativas():
         print(f"   Traceback completo: {error_msg}")
         return jsonify({'error': str(e), 'details': error_msg}), 500
 
+@app.route('/api/empresas_itinerarios', methods=['GET'])
+def api_empresas_itinerarios():
+    """
+    Obtiene el listado de empresas (EOTs) que cuentan con itinerarios vigentes.
+    Enlaza public.eots con public.catalogo_rutas y geometria.historico_itinerario.
+    """
+    print("📡 Solicitud recibida en /api/empresas_itinerarios")
+    try:
+        conn = psycopg2.connect(**DB_RUTAS_CONFIG)
+        conn.set_client_encoding('UTF8')
+        cur = conn.cursor()
+        query = """
+            SELECT 
+                e.cod_catalogo, 
+                e.eot_nombre, 
+                e.eot_linea,
+                COUNT(hi.id_itinerario) AS total_itinerarios
+            FROM public.eots e
+            JOIN public.catalogo_rutas cr ON e.cod_catalogo = cr.id_eot_catalogo
+            JOIN geometria.historico_itinerario hi ON cr.ruta_hex = hi.ruta_hex
+            WHERE hi.vigente = true
+            GROUP BY e.cod_catalogo, e.eot_nombre, e.eot_linea
+            ORDER BY e.eot_nombre ASC;
+        """
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        empresas = []
+        for r in rows:
+            empresas.append({
+                'cod_catalogo': int(r[0]),
+                'eot_nombre': str(r[1]) if r[1] else 'Sin Nombre',
+                'eot_linea': str(r[2]) if r[2] else '',
+                'total_itinerarios': int(r[3])
+            })
+        print(f"✓ Empresas con itinerarios vigentes cargadas: {len(empresas)}")
+        return jsonify({'empresas': empresas})
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"❌ Error en /api/empresas_itinerarios: {e}\n{error_msg}")
+        return jsonify({'error': str(e), 'details': error_msg}), 500
+
+@app.route('/api/itinerarios', methods=['GET'])
+def api_itinerarios():
+    """
+    Obtiene los itinerarios vigentes de una empresa en formato GeoJSON FeatureCollection.
+    Parámetro GET: cod_catalogo (int)
+    Enlaza public.eots con public.catalogo_rutas y geometria.historico_itinerario.
+    """
+    cod_catalogo = request.args.get('cod_catalogo')
+    print(f"📡 Solicitud recibida en /api/itinerarios para cod_catalogo={cod_catalogo}")
+    if not cod_catalogo:
+        return jsonify({'error': 'Parámetro cod_catalogo es requerido'}), 400
+
+    try:
+        cod_catalogo = int(cod_catalogo)
+    except ValueError:
+        return jsonify({'error': 'cod_catalogo debe ser un número entero'}), 400
+
+    try:
+        conn = psycopg2.connect(**DB_RUTAS_CONFIG)
+        conn.set_client_encoding('UTF8')
+        cur = conn.cursor()
+        query = """
+            SELECT 
+                hi.id_itinerario,
+                hi.ruta_hex,
+                e.cod_catalogo,
+                e.eot_nombre,
+                COALESCE(l.numero_linea, e.eot_linea) AS linea,
+                cr.ramal,
+                cr.sentido,
+                cr.identificacion,
+                cr.origen,
+                cr.destino,
+                COALESCE(l.color_hex, '#2563EB') AS color_hex,
+                ST_AsGeoJSON(hi.geom) AS geom_geojson
+            FROM public.eots e
+            JOIN public.catalogo_rutas cr ON e.cod_catalogo = cr.id_eot_catalogo
+            JOIN geometria.historico_itinerario hi ON cr.ruta_hex = hi.ruta_hex
+            LEFT JOIN public.linea_ruta_catalogo lrc ON lrc.ruta_hex = cr.ruta_hex 
+                 AND (lrc.fecha_fin IS NULL OR lrc.fecha_fin >= CURRENT_DATE)
+            LEFT JOIN public.lineas l ON l.id_linea = lrc.id_linea
+            WHERE e.cod_catalogo = %s
+              AND hi.vigente = true
+            ORDER BY linea, cr.ramal, cr.sentido;
+        """
+        cur.execute(query, (cod_catalogo,))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        features = []
+        for r in rows:
+            geom_str = r[11]
+            if not geom_str:
+                continue
+            geom = json.loads(geom_str)
+            features.append({
+                'type': 'Feature',
+                'geometry': geom,
+                'properties': {
+                    'id_itinerario': r[0],
+                    'ruta_hex': r[1],
+                    'cod_catalogo': r[2],
+                    'eot_nombre': r[3] or '',
+                    'linea': r[4] or 'S/N',
+                    'ramal': r[5] if r[5] is not None else '',
+                    'sentido': r[6] or '',
+                    'identificacion': r[7] or '',
+                    'origen': r[8] or '',
+                    'destino': r[9] or '',
+                    'color_hex': r[10] or '#2563EB'
+                }
+            })
+
+        print(f"✓ Itinerarios encontrados para cod_catalogo={cod_catalogo}: {len(features)}")
+        return jsonify({
+            'type': 'FeatureCollection',
+            'features': features,
+            'total': len(features)
+        })
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"❌ Error en /api/itinerarios: {e}\n{error_msg}")
+        return jsonify({'error': str(e), 'details': error_msg}), 500
+
 @app.route('/api/validaciones', methods=['POST'])
 def api_validaciones():
     """
