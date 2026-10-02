@@ -389,27 +389,57 @@ def cargar_barrios():
     
     return gdf_combinado, col_nombre_completo, col_nombre
 
-def obtener_cache_key(mes, anio, id_franja, incluir_barrios):
+def obtener_cache_key(mes=None, anio=None, id_franja=None, incluir_barrios=False, fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, id_tipo_dia=None):
     """Genera una clave única para el cache"""
     barrios_suffix = "_barrios" if incluir_barrios else ""
-    return f"validaciones_{anio}_{mes:02d}_franja{id_franja}{barrios_suffix}"
+    if fecha_inicio and fecha_fin:
+        date_part = f"{fecha_inicio}_{fecha_fin}"
+    elif mes and anio:
+        date_part = f"{anio}_{mes:02d}"
+    else:
+        date_part = "periodo"
 
-def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global=None):
-    # No guardar cache si la consulta es del mes actual (puede tener datos incompletos)
+    if id_franja:
+        time_part = f"franja{id_franja}"
+    elif hora_inicio and hora_fin:
+        h_ini = str(hora_inicio).replace(':', '')[:4]
+        h_fin = str(hora_fin).replace(':', '')[:4]
+        td = id_tipo_dia if id_tipo_dia is not None else 0
+        time_part = f"h{h_ini}_{h_fin}_td{td}"
+    else:
+        time_part = "todoeldia"
+
+    return f"validaciones_{date_part}_{time_part}{barrios_suffix}"
+
+def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global=None, fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, id_tipo_dia=None):
+    # No guardar cache si la consulta incluye el día de hoy o es del mes actual (puede tener datos incompletos)
     ahora = datetime.now()
-    mes_actual = ahora.month
-    anio_actual = ahora.year
+    hoy_date = ahora.date()
     
-    if mes == mes_actual and anio == anio_actual:
-        print(f"⚠️ No se guardará cache para {mes}/{anio} porque corresponde al mes actual (datos pueden estar incompletos)")
-        return
+    if fecha_fin:
+        try:
+            fin_dt = datetime.strptime(str(fecha_fin), '%Y-%m-%d').date()
+            if fin_dt >= hoy_date:
+                print(f"⚠️ No se guardará cache para rango que finaliza en {fecha_fin} porque incluye datos actuales")
+                return
+        except Exception:
+            pass
+    elif mes and anio:
+        if mes == ahora.month and anio == ahora.year:
+            print(f"⚠️ No se guardará cache para {mes}/{anio} porque corresponde al mes actual (datos pueden estar incompletos)")
+            return
     
-    cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios)
+    cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios, fecha_inicio, fecha_fin, hora_inicio, hora_fin, id_tipo_dia)
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
     cache_data = {
         'mes': mes,
         'anio': anio,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
         'id_franja': id_franja,
+        'hora_inicio': hora_inicio,
+        'hora_fin': hora_fin,
+        'id_tipo_dia': id_tipo_dia,
         'incluir_barrios': incluir_barrios,
         'fecha_cache': datetime.now().isoformat(),
         'totals': totals_global or {},
@@ -466,17 +496,25 @@ def guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nomb
         json.dump(cache_data, f, ensure_ascii=False, indent=2)
     print(f"✓ Cache guardado: {cache_file}")
 
-def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre):
-    # No cargar cache si la consulta es del mes actual (siempre consultar BD para datos actualizados)
+def cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre, fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, id_tipo_dia=None):
+    # No cargar cache si la consulta incluye el día actual o corresponde al mes actual (siempre consultar BD para datos actualizados)
     ahora = datetime.now()
-    mes_actual = ahora.month
-    anio_actual = ahora.year
+    hoy_date = ahora.date()
     
-    if mes == mes_actual and anio == anio_actual:
-        print(f"⚠️ No se cargará cache para {mes}/{anio} porque corresponde al mes actual (consulta directa a BD)")
-        return None, False, None
+    if fecha_fin:
+        try:
+            fin_dt = datetime.strptime(str(fecha_fin), '%Y-%m-%d').date()
+            if fin_dt >= hoy_date:
+                print(f"⚠️ No se cargará cache para rango {fecha_inicio} a {fecha_fin} porque incluye datos actuales (consulta directa a BD)")
+                return None, False, None
+        except Exception:
+            pass
+    elif mes and anio:
+        if mes == ahora.month and anio == ahora.year:
+            print(f"⚠️ No se cargará cache para {mes}/{anio} porque corresponde al mes actual (consulta directa a BD)")
+            return None, False, None
     
-    cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios)
+    cache_key = obtener_cache_key(mes, anio, id_franja, incluir_barrios, fecha_inicio, fecha_fin, hora_inicio, hora_fin, id_tipo_dia)
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
     if os.path.exists(cache_file):
         print(f"✓ Cargando desde cache: {cache_file}")
@@ -578,148 +616,102 @@ def obtener_franja_operativa(id_franja):
         print(traceback.format_exc())
         return None
 
-def obtener_feriados(mes, anio):
-    """Obtiene la lista de feriados del mes y año seleccionado desde la base de datos DB_RUTAS"""
+def obtener_feriados(mes=None, anio=None, fecha_inicio=None, fecha_fin=None):
+    """Obtiene la lista de feriados del período seleccionado desde la base de datos DB_RUTAS"""
     try:
-        # Calcular fechas de inicio y fin del mes
-        if mes == 12:
-            fecha_inicio = f"{anio}-{mes:02d}-01"
-            fecha_fin = f"{anio + 1}-01-01"
-        else:
-            fecha_inicio = f"{anio}-{mes:02d}-01"
-            fecha_fin = f"{anio}-{mes + 1:02d}-01"
+        # Si no se proporcionan fecha_inicio y fecha_fin, calcularlas a partir de mes y anio
+        if not fecha_inicio or not fecha_fin:
+            if mes is None or anio is None:
+                return []
+            if mes == 12:
+                fecha_inicio = f"{anio}-{mes:02d}-01"
+                fecha_fin = f"{anio + 1}-01-01"
+            else:
+                fecha_inicio = f"{anio}-{mes:02d}-01"
+                fecha_fin = f"{anio}-{mes + 1:02d}-01"
         
-            conn_rutas = psycopg2.connect(**DB_RUTAS_CONFIG)
-            query_feriados = """
-            SELECT fecha 
-            FROM public.feriados
-            WHERE fecha >= %s AND fecha < %s
-            ORDER BY fecha ASC
-            """
-            df_feriados = pd.read_sql_query(query_feriados, conn_rutas, params=(fecha_inicio, fecha_fin))
-            conn_rutas.close()
-            
-            # Convertir fechas a formato YYYY-MM-DD
-            feriados_list = []
-            for _, row in df_feriados.iterrows():
-                fecha = row['fecha']
-                if pd.notna(fecha):
-                    # Si es datetime, convertir a date
-                    if hasattr(fecha, 'date'):
-                        fecha = fecha.date()
-                    elif isinstance(fecha, str):
-                        fecha = fecha.split()[0]  # Tomar solo la parte de la fecha
-                    feriados_list.append(str(fecha))
-            
-            print(f"✓ Feriados obtenidos para {mes}/{anio}: {len(feriados_list)} fechas")
-            return feriados_list
+        conn_rutas = psycopg2.connect(**DB_RUTAS_CONFIG)
+        query_feriados = """
+        SELECT fecha 
+        FROM public.feriados
+        WHERE fecha >= %s AND fecha < %s
+        ORDER BY fecha ASC
+        """
+        df_feriados = pd.read_sql_query(query_feriados, conn_rutas, params=(fecha_inicio, fecha_fin))
+        conn_rutas.close()
+        
+        # Convertir fechas a formato YYYY-MM-DD
+        feriados_list = []
+        for _, row in df_feriados.iterrows():
+            fecha = row['fecha']
+            if pd.notna(fecha):
+                # Si es datetime, convertir a date
+                if hasattr(fecha, 'date'):
+                    fecha = fecha.date()
+                elif isinstance(fecha, str):
+                    fecha = fecha.split()[0]  # Tomar solo la parte de la fecha
+                feriados_list.append(str(fecha))
+        
+        print(f"✓ Feriados obtenidos ({fecha_inicio} a {fecha_fin}): {len(feriados_list)} fechas")
+        return feriados_list
     except Exception as e:
         print(f"⚠️ Error al obtener feriados: {e}")
         import traceback
         print(traceback.format_exc())
         return []
 
-def obtener_validaciones(mes, anio, id_franja):
-    """Obtiene las validaciones según la franja operativa seleccionada"""
+def obtener_validaciones(mes=None, anio=None, id_franja=None, fecha_inicio=None, fecha_fin=None, hora_inicio=None, hora_fin=None, id_tipo_dia=None):
+    """Obtiene las validaciones según la franja operativa o rango horario y período seleccionado"""
     
-    # Obtener datos de la franja operativa
-    franja = obtener_franja_operativa(id_franja)
-    if not franja:
-        print(f"Error: No se encontró la franja operativa {id_franja}")
-        return None
-    
-    denominacion = franja['denominacion']
-    hora_inicio = franja['hora_inicio']
-    hora_fin = franja['hora_fin']
-    id_tipo_dia = franja['id_tipo_dia']
-    
-    # Convertir hora_inicio y hora_fin a formato TIME si vienen como objetos time o timedelta
-    # Asegurar que sean strings en formato 'HH:MM:SS'
-    from datetime import timedelta
-    
-    if isinstance(hora_inicio, timedelta):
-        # Es un timedelta, convertir a string HH:MM:SS
-        total_seconds = int(hora_inicio.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        hora_inicio_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    elif hasattr(hora_inicio, 'total_seconds'):
-        # Es otro tipo de timedelta-like object
-        total_seconds = int(hora_inicio.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        hora_inicio_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    elif isinstance(hora_inicio, str):
-        # Ya es un string, verificar formato
-        hora_inicio_str = hora_inicio.strip()
-        # Si es solo un número, asumir que son horas
-        if hora_inicio_str.isdigit():
-            hora_inicio_str = f"{int(hora_inicio_str):02d}:00:00"
-        # Si tiene formato HH:MM, agregar segundos
-        elif hora_inicio_str.count(':') == 1:
-            hora_inicio_str = hora_inicio_str + ':00'
-        # Asegurar que tenga formato completo
-        partes = hora_inicio_str.split(':')
-        if len(partes) == 2:
-            hora_inicio_str = hora_inicio_str + ':00'
+    if id_franja:
+        # Obtener datos de la franja operativa
+        franja = obtener_franja_operativa(id_franja)
+        if not franja:
+            print(f"Error: No se encontró la franja operativa {id_franja}")
+            return None
+        denominacion = franja['denominacion']
+        hora_inicio = franja['hora_inicio']
+        hora_fin = franja['hora_fin']
+        id_tipo_dia = franja['id_tipo_dia']
     else:
-        # Intentar convertir objeto time o datetime.time a string
-        if hasattr(hora_inicio, 'hour'):
-            # Es un objeto datetime.time
-            hora_inicio_str = f"{hora_inicio.hour:02d}:{hora_inicio.minute:02d}:{hora_inicio.second:02d}"
-        else:
-            # Último recurso: convertir a string y parsear
-            hora_str = str(hora_inicio).strip()
-            if hora_str.isdigit():
-                hora_inicio_str = f"{int(hora_str):02d}:00:00"
-            else:
-                hora_inicio_str = hora_str
+        if hora_inicio is None or hora_fin is None:
+            print("Error: Se requiere id_franja o bien (hora_inicio y hora_fin)")
+            return None
+        denominacion = f"Horario {str(hora_inicio)[:5]} - {str(hora_fin)[:5]}"
+        # id_tipo_dia viene como parámetro (5=Laboral, 6=Sábado, 7=No laboral, None/otro=Todos los días)
     
-    if isinstance(hora_fin, timedelta):
-        # Es un timedelta, convertir a string HH:MM:SS
-        total_seconds = int(hora_fin.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        hora_fin_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    elif hasattr(hora_fin, 'total_seconds'):
-        # Es otro tipo de timedelta-like object
-        total_seconds = int(hora_fin.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        hora_fin_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    elif isinstance(hora_fin, str):
-        # Ya es un string, verificar formato
-        hora_fin_str = hora_fin.strip()
-        # Si es solo un número, asumir que son horas
-        if hora_fin_str.isdigit():
-            hora_fin_str = f"{int(hora_fin_str):02d}:00:00"
-        # Si tiene formato HH:MM, agregar segundos
-        elif hora_fin_str.count(':') == 1:
-            hora_fin_str = hora_fin_str + ':00'
-        # Asegurar que tenga formato completo
-        partes = hora_fin_str.split(':')
+    # Función auxiliar para convertir horas a string 'HH:MM:SS'
+    def _formatear_hora(h, es_fin=False):
+        if isinstance(h, timedelta):
+            total_seconds = int(h.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        if hasattr(h, 'hour'):
+            return f"{h.hour:02d}:{h.minute:02d}:{h.second:02d}"
+        s = str(h).strip()
+        if s.isdigit():
+            hora_num = int(s)
+            return f"{hora_num:02d}:59:59" if es_fin else f"{hora_num:02d}:00:00"
+        partes = s.split(':')
         if len(partes) == 2:
-            hora_fin_str = hora_fin_str + ':00'
-    else:
-        # Intentar convertir objeto time o datetime.time a string
-        if hasattr(hora_fin, 'hour'):
-            # Es un objeto datetime.time
-            hora_fin_str = f"{hora_fin.hour:02d}:{hora_fin.minute:02d}:{hora_fin.second:02d}"
-        else:
-            # Último recurso: convertir a string y parsear
-            hora_str = str(hora_fin).strip()
-            if hora_str.isdigit():
-                hora_fin_str = f"{int(hora_str):02d}:00:00"
-            else:
-                hora_fin_str = hora_str
+            h_int = int(partes[0])
+            m_int = int(partes[1])
+            if es_fin and m_int == 59:
+                return f"{h_int:02d}:59:59"
+            elif es_fin and m_int == 0:
+                return f"{h_int:02d}:59:59"
+            return f"{h_int:02d}:{m_int:02d}:59" if (es_fin and m_int > 0) else f"{h_int:02d}:{m_int:02d}:00"
+        if len(partes) == 3:
+            return f"{int(partes[0]):02d}:{int(partes[1]):02d}:{int(partes[2]):02d}"
+        return s
+
+    hora_inicio_str = _formatear_hora(hora_inicio, es_fin=False)
+    hora_fin_str = _formatear_hora(hora_fin, es_fin=True)
     
     # Validar formato final (debe ser HH:MM:SS)
     try:
-        # Validar que el formato sea correcto
         import re
         if not re.match(r'^\d{2}:\d{2}:\d{2}$', hora_inicio_str):
             raise ValueError(f"Formato de hora_inicio inválido: {hora_inicio_str}")
@@ -732,26 +724,29 @@ def obtener_validaciones(mes, anio, id_franja):
     
     print(f"✓ Horas convertidas: {hora_inicio_str} - {hora_fin_str}")
     
-    # Obtener feriados desde DB_RUTAS para el mes y año seleccionado
-    feriados_list = obtener_feriados(mes, anio)
-    
-    # Calcular fechas de inicio y fin del mes
-    if mes == 12:
-        fecha_inicio = f"{anio}-{mes:02d}-01"
-        fecha_fin = f"{anio + 1}-01-01"
+    # Calcular fechas del período
+    if fecha_inicio and fecha_fin:
+        fecha_inicio_str = str(fecha_inicio).strip()
+        fecha_fin_str = str(fecha_fin).strip()
+        fin_date = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date() + timedelta(days=1)
+        fecha_fin_sql = fin_date.strftime('%Y-%m-%d')
     else:
-        fecha_inicio = f"{anio}-{mes:02d}-01"
-        fecha_fin = f"{anio}-{mes + 1:02d}-01"
+        fecha_inicio_str = f"{anio}-{mes:02d}-01"
+        if mes == 12:
+            fecha_fin_sql = f"{anio + 1}-01-01"
+        else:
+            fecha_fin_sql = f"{anio}-{mes + 1:02d}-01"
+    
+    # Obtener feriados desde DB_RUTAS para el período
+    feriados_list = obtener_feriados(fecha_inicio=fecha_inicio_str, fecha_fin=fecha_fin_sql)
     
     # Inicializar parámetros de la query: fechas primero, luego horas, luego feriados
-    query_params = [fecha_inicio, fecha_fin]
+    query_params = [fecha_inicio_str, fecha_fin_sql]
     
     # Construir condición de hora usando la parte TIME completa (horas, minutos y segundos)
     # Extraer la parte de tiempo del timestamp y compararla con hora_inicio y hora_fin
     # Si hora_fin es menor que hora_inicio, significa que cruza medianoche
     # En PostgreSQL se usa ::time para extraer la parte de tiempo
-    
-    # Validar que las horas estén en formato correcto antes de usarlas
     print(f"Validando horas: inicio='{hora_inicio_str}', fin='{hora_fin_str}'")
     
     if hora_fin_str >= hora_inicio_str:
@@ -2259,20 +2254,64 @@ def api_validaciones():
         print(f"\n📡 Solicitud recibida en /api/validaciones")
         data = request.json or {}
         print(f"   Datos recibidos: {data}")
-        mes = int(data.get('mes', datetime.now().month))
-        anio = int(data.get('anio', datetime.now().year))
-        id_franja = int(data.get('id_franja'))
+        
+        tipo_filtro_fecha = data.get('tipo_filtro_fecha')
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+        mes = data.get('mes')
+        anio = data.get('anio')
+        
+        # Validar filtro de fecha
+        if tipo_filtro_fecha == 'rango' or (fecha_inicio and fecha_fin):
+            if not fecha_inicio or not fecha_fin:
+                return jsonify({'error': 'fecha_inicio y fecha_fin son requeridos para el filtro por rango de fechas'}), 400
+            try:
+                d_ini = datetime.strptime(str(fecha_inicio).strip(), '%Y-%m-%d').date()
+                d_fin = datetime.strptime(str(fecha_fin).strip(), '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha inválido. Se espera YYYY-MM-DD'}), 400
+            
+            if d_fin < d_ini:
+                return jsonify({'error': 'La fecha final no puede ser anterior a la fecha inicial'}), 400
+            
+            diff_dias = (d_fin - d_ini).days + 1
+            if diff_dias > 31:
+                return jsonify({'error': f'El rango de fechas seleccionado es de {diff_dias} días corridos. No puede sobrepasar 31 días corridos.'}), 400
+            
+            fecha_inicio = str(fecha_inicio).strip()
+            fecha_fin = str(fecha_fin).strip()
+            mes = d_ini.month
+            anio = d_ini.year
+        else:
+            mes = int(mes if mes is not None else datetime.now().month)
+            anio = int(anio if anio is not None else datetime.now().year)
+            fecha_inicio = None
+            fecha_fin = None
+            
+        tipo_filtro_horario = data.get('tipo_filtro_horario')
+        id_franja = data.get('id_franja')
+        hora_inicio = data.get('hora_inicio')
+        hora_fin = data.get('hora_fin')
+        id_tipo_dia = data.get('id_tipo_dia')
+        if id_tipo_dia is not None and str(id_tipo_dia).isdigit():
+            id_tipo_dia = int(id_tipo_dia)
+        else:
+            id_tipo_dia = None
+            
+        if tipo_filtro_horario == 'rango' or (hora_inicio is not None and hora_fin is not None):
+            id_franja = None
+            if hora_inicio is None or hora_fin is None:
+                return jsonify({'error': 'hora_inicio y hora_fin son requeridos para el filtro por rango horario'}), 400
+        else:
+            if not id_franja:
+                return jsonify({'error': 'id_franja o (hora_inicio y hora_fin) son requeridos'}), 400
+            id_franja = int(id_franja)
+            franja = obtener_franja_operativa(id_franja)
+            if not franja:
+                return jsonify({'error': f'No se encontró la franja operativa {id_franja}'}), 400
+
         incluir_barrios = bool(data.get('incluir_barrios', False))
-        print(f"   Parámetros: mes={mes}, anio={anio}, id_franja={id_franja}, incluir_barrios={incluir_barrios}")
-
-        # Validar que se proporcione id_franja
-        if not id_franja:
-            return jsonify({'error': 'id_franja es requerido'}), 400
-
-        # Obtener información de la franja operativa
-        franja = obtener_franja_operativa(id_franja)
-        if not franja:
-            return jsonify({'error': f'No se encontró la franja operativa {id_franja}'}), 400
+        print(f"   Parámetros: mes={mes}, anio={anio}, fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, id_franja={id_franja}, hora_inicio={hora_inicio}, hora_fin={hora_fin}, id_tipo_dia={id_tipo_dia}, incluir_barrios={incluir_barrios}")
 
         # Selecciona la capa base
         print(f"   Seleccionando capa base (incluir_barrios={incluir_barrios})...")
@@ -2309,8 +2348,11 @@ def api_validaciones():
 
         # Intentar cargar cache
         print(f"   Intentando cargar desde cache...")
-        # Nota: cargar_cache puede devolver (gdf_resultado, desde_cache) o (gdf_resultado, desde_cache, totals_cache)
-        cargar_cache_result = cargar_cache(mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre)
+        cargar_cache_result = cargar_cache(
+            mes, anio, id_franja, incluir_barrios, gdf_base, col_nombre,
+            fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+            hora_inicio=hora_inicio, hora_fin=hora_fin, id_tipo_dia=id_tipo_dia
+        )
         gdf_resultado = None
         desde_cache = False
         totals_cache = None
@@ -2325,7 +2367,6 @@ def api_validaciones():
             else:
                 print(f"   ⚠️ Cache devolvió tupla con {len(cargar_cache_result)} valores (inesperado)")
         else:
-            # por seguridad, si la función retornó algo inesperado
             print(f"   ⚠️ Cache devolvió algo inesperado: {type(cargar_cache_result)}")
             gdf_resultado, desde_cache = None, False
 
@@ -2337,20 +2378,20 @@ def api_validaciones():
             print(f"   No hay cache válido, consultando base de datos...")
             # No hay cache o no se construyó correctamente -> consultar DB
             try:
-                df_validaciones = obtener_validaciones(mes, anio, id_franja)
+                df_validaciones = obtener_validaciones(
+                    mes=mes, anio=anio, id_franja=id_franja,
+                    fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+                    hora_inicio=hora_inicio, hora_fin=hora_fin, id_tipo_dia=id_tipo_dia
+                )
                 if df_validaciones is None:
-                    # Si obtener_validaciones retorna None, puede ser un error de BD o no hay datos
-                    # Lanzar excepción para que sea capturada por el bloque except general
                     raise Exception('Error al obtener validaciones de la base de datos. Verifique la conexión y el espacio disponible en PostgreSQL.')
                 if len(df_validaciones) == 0:
                     raise Exception('No se encontraron validaciones para el período seleccionado')
             except psycopg2_errors.DiskFull as e:
-                # Error específico de espacio en disco
                 error_msg = f'Error: El servidor de base de datos se quedó sin espacio en disco. Por favor contacte al administrador del sistema. Detalles: {str(e)}'
                 print(f"❌ {error_msg}")
                 return jsonify({'error': error_msg, 'details': str(e)}), 500
             except psycopg2.Error as e:
-                # Otros errores de PostgreSQL
                 error_msg = f'Error de base de datos: {str(e)}'
                 print(f"❌ {error_msg}")
                 return jsonify({'error': error_msg, 'details': str(e)}), 500
@@ -2365,7 +2406,6 @@ def api_validaciones():
             dias_con_datos = int(df_validaciones['fecha'].nunique())
             
             # Calcular promedio diario: suma de totales diarios / número de días
-            # Pasajeros únicos por día (total del día, no únicos del período)
             pasajeros_por_dia = df_validaciones.groupby('fecha')['serialmediopago'].nunique()
             suma_pasajeros_diarios = int(pasajeros_por_dia.sum())
             promedio_diario_pasajeros = round(suma_pasajeros_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
@@ -2388,12 +2428,15 @@ def api_validaciones():
             # Asignar validaciones a áreas
             gdf_resultado = asignar_validaciones_a_areas(df_validaciones, gdf_base, col_nombre)
 
-            # Guardar cache: intento pasar totals_global si la función guardar_cache acepta ese parámetro
+            # Guardar cache
             try:
-                guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global)
-            except TypeError:
-                # versión anterior de guardar_cache sin totals -> llamar sin totals
-                guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre)
+                guardar_cache(
+                    mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global,
+                    fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+                    hora_inicio=hora_inicio, hora_fin=hora_fin, id_tipo_dia=id_tipo_dia
+                )
+            except Exception as e_cache:
+                print(f"⚠️ Error guardando cache: {e_cache}")
 
         else:
             # cargado desde cache
@@ -2402,17 +2445,19 @@ def api_validaciones():
                 totals_global['desde_cache'] = True
             else:
                 # si no hay totals en cache o están incompletos, recalcular desde DB
-                print(f"Totals no encontrados en cache para {mes}/{anio}, recalculando desde BD...")
-                df_validaciones = obtener_validaciones(mes, anio, id_franja)
+                print(f"Totals no encontrados en cache para período, recalculando desde BD...")
+                df_validaciones = obtener_validaciones(
+                    mes=mes, anio=anio, id_franja=id_franja,
+                    fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+                    hora_inicio=hora_inicio, hora_fin=hora_fin, id_tipo_dia=id_tipo_dia
+                )
                 if df_validaciones is not None and len(df_validaciones) > 0:
                     total_validaciones = int(len(df_validaciones))
                     unique_passengers = int(df_validaciones['serialmediopago'].nunique())
                     unique_buses = int(df_validaciones['idsam'].nunique())
-                    # Contar días únicos con datos
                     df_validaciones['fecha'] = pd.to_datetime(df_validaciones['fechahoraevento']).dt.date
                     dias_con_datos = int(df_validaciones['fecha'].nunique())
                     
-                    # Calcular promedio diario: suma de totales diarios / número de días
                     pasajeros_por_dia = df_validaciones.groupby('fecha')['serialmediopago'].nunique()
                     suma_pasajeros_diarios = int(pasajeros_por_dia.sum())
                     promedio_diario_pasajeros = round(suma_pasajeros_diarios / dias_con_datos, 1) if dias_con_datos > 0 else 0.0
@@ -2428,21 +2473,23 @@ def api_validaciones():
                         'dias_con_datos': dias_con_datos,
                         'promedio_diario_pasajeros': promedio_diario_pasajeros,
                         'promedio_diario_buses': promedio_diario_buses,
-                        'desde_cache': True  # datos desde cache pero totals recalculados
+                        'desde_cache': True
                     }
-                    # Actualizar cache con los totals calculados
                     try:
-                        guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global)
-                    except TypeError:
-                        guardar_cache(mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre)
+                        guardar_cache(
+                            mes, anio, id_franja, incluir_barrios, gdf_resultado, col_nombre, totals_global,
+                            fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+                            hora_inicio=hora_inicio, hora_fin=hora_fin, id_tipo_dia=id_tipo_dia
+                        )
+                    except Exception as e_cache:
+                        print(f"⚠️ Error actualizando cache: {e_cache}")
                 else:
-                    # fallback si no se pueden obtener los datos
                     totals_global = {
-                    'validaciones': int(gdf_resultado['cantidad_validaciones'].sum()),
-                    'unique_passengers': None,
-                    'unique_buses': None,
-                    'desde_cache': True
-                }
+                        'validaciones': int(gdf_resultado['cantidad_validaciones'].sum()),
+                        'unique_passengers': None,
+                        'unique_buses': None,
+                        'desde_cache': True
+                    }
 
         # Opcional: simplificar geometría para reducir payload (ajusta tolerance)
         try:

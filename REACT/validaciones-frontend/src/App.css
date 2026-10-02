@@ -23,6 +23,88 @@ body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; back
 
 .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.filter-mode-select {
+  font-weight: 600;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.input-label-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.date-input {
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e293b;
+  font-family: inherit;
+  outline: none;
+}
+.date-input:focus,
+.hour-select:focus,
+.dia-select:focus,
+.filter-mode-select:focus {
+  border-color: #12776f;
+  box-shadow: 0 0 0 2px rgba(18, 119, 111, 0.2);
+}
+
+.hour-select,
+.dia-select {
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+}
+
+.days-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+  white-space: nowrap;
+}
+
+.days-badge.warning {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 .control-checkbox { display:flex; align-items:center; gap:6px; font-size:14px; }
 .control-criterio { display:flex; align-items:center; gap:6px; margin-left:8px; }
 
@@ -265,6 +347,18 @@ body { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; margin:0; back
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     width: 100%;
+  }
+
+  .filter-group {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-wrap: wrap;
+    box-sizing: border-box;
+  }
+
+  .range-inputs {
+    width: 100%;
+    flex-wrap: wrap;
   }
   
   .controls select {

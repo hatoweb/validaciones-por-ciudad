@@ -278,10 +278,86 @@ function Legend({min, max, criterio}){
 export default function App(){
   const [geojson, setGeojson] = useState(null);
   const [criterio, setCriterio] = useState('validaciones');
+  
+  // Filtro por Fecha: 'mes' o 'rango'
+  const [tipoFiltroFecha, setTipoFiltroFecha] = useState('mes');
   const [mes, setMes] = useState(new Date().getMonth()+1);
   const [anio, setAnio] = useState(new Date().getFullYear());
+
+  // Helper para formatear fecha a YYYY-MM-DD
+  const formatearFechaInput = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const hoyFechaStr = useMemo(() => formatearFechaInput(new Date()), []);
+  const hace30DiasFechaStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return formatearFechaInput(d);
+  }, []);
+
+  const [fechaDesde, setFechaDesde] = useState(hace30DiasFechaStr);
+  const [fechaHasta, setFechaHasta] = useState(hoyFechaStr);
+
+  // Filtro por Horario: 'franja' o 'rango'
+  const [tipoFiltroHorario, setTipoFiltroHorario] = useState('franja');
   const [idFranja, setIdFranja] = useState(null);
   const [franjas, setFranjas] = useState([]);
+  const [horaDesde, setHoraDesde] = useState(0); // 0 a 23
+  const [horaHasta, setHoraHasta] = useState(23); // 0 a 23
+  const [tipoDia, setTipoDia] = useState('todos'); // 'todos', '5' (Laboral), '6' (Sábado), '7' (No Laboral)
+
+  const HORAS_DEL_DIA = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+
+  // Cálculo de días seleccionados para rango de fechas
+  const diasSeleccionados = useMemo(() => {
+    if (!fechaDesde || !fechaHasta) return 0;
+    try {
+      const d1 = new Date(fechaDesde + 'T00:00:00');
+      const d2 = new Date(fechaHasta + 'T00:00:00');
+      const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      return diff > 0 ? diff : 0;
+    } catch {
+      return 0;
+    }
+  }, [fechaDesde, fechaHasta]);
+
+  // Handlers para asegurar que no supere 31 días
+  const handleFechaDesdeChange = (e) => {
+    const nuevaFechaDesde = e.target.value;
+    setFechaDesde(nuevaFechaDesde);
+    if (nuevaFechaDesde && fechaHasta) {
+      const dIni = new Date(nuevaFechaDesde + 'T00:00:00');
+      const dFin = new Date(fechaHasta + 'T00:00:00');
+      const diffDias = Math.round((dFin.getTime() - dIni.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDias > 31 || dFin < dIni) {
+        const dNuevaFin = new Date(dIni);
+        dNuevaFin.setDate(dNuevaFin.getDate() + 30);
+        const hoy = new Date();
+        const dFinal = dNuevaFin > hoy ? hoy : dNuevaFin;
+        setFechaHasta(formatearFechaInput(dFinal));
+      }
+    }
+  };
+
+  const handleFechaHastaChange = (e) => {
+    const nuevaFechaHasta = e.target.value;
+    setFechaHasta(nuevaFechaHasta);
+    if (fechaDesde && nuevaFechaHasta) {
+      const dIni = new Date(fechaDesde + 'T00:00:00');
+      const dFin = new Date(nuevaFechaHasta + 'T00:00:00');
+      const diffDias = Math.round((dFin.getTime() - dIni.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDias > 31) {
+        const dNuevaIni = new Date(dFin);
+        dNuevaIni.setDate(dNuevaIni.getDate() - 30);
+        setFechaDesde(formatearFechaInput(dNuevaIni));
+      }
+    }
+  };
+
   const [incluirBarrios, setIncluirBarrios] = useState(false);
   const [totals, setTotals] = useState(null);
   const [stats, setStats] = useState(null);
@@ -466,45 +542,100 @@ export default function App(){
   // };
 
   const fetchData = async () => {
-    if (!idFranja) {
+    // Validar Horario
+    if (tipoFiltroHorario === 'franja' && !idFranja) {
       alert('Por favor selecciona una franja operativa');
       return;
     }
+    if (tipoFiltroHorario === 'rango') {
+      if (horaDesde === '' || horaDesde === null || horaHasta === '' || horaHasta === null) {
+        alert('Por favor selecciona la hora de inicio y fin');
+        return;
+      }
+    }
 
-    // Validar si el mes/año seleccionado es futuro o no tiene datos disponibles
+    // Validar Período de Fecha
     const ahora = new Date();
     const mesActual = ahora.getMonth() + 1; // getMonth() devuelve 0-11
     const anioActual = ahora.getFullYear();
-    
-    // Verificar si es un mes/año futuro
-    if (anio > anioActual || (anio === anioActual && mes > mesActual)) {
-      alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
-      return;
-    }
 
-    // Verificar si es el mes actual y mostrar advertencia sobre datos parciales
-    if (anio === anioActual && mes === mesActual) {
-      alert('Estos datos son parciales (actualizados al día de ayer). Los mismos son actualizados diariamente hasta el cierre del presente mes.');
+    if (tipoFiltroFecha === 'mes') {
+      // Verificar si es un mes/año futuro
+      if (anio > anioActual || (anio === anioActual && mes > mesActual)) {
+        alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+        return;
+      }
+      // Verificar si es el mes actual y mostrar advertencia sobre datos parciales
+      if (anio === anioActual && mes === mesActual) {
+        alert('Estos datos son parciales (actualizados al día de ayer). Los mismos son actualizados diariamente hasta el cierre del presente mes.');
+      }
+    } else {
+      // Filtro por rango de fechas
+      if (!fechaDesde || !fechaHasta) {
+        alert('Por favor selecciona las fechas de inicio y fin');
+        return;
+      }
+      const dInicio = new Date(fechaDesde + 'T00:00:00');
+      const dFin = new Date(fechaHasta + 'T00:00:00');
+      if (dFin < dInicio) {
+        alert('La fecha final no puede ser anterior a la fecha inicial.');
+        return;
+      }
+      const diffDias = Math.round((dFin.getTime() - dInicio.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDias > 31) {
+        alert(`El rango seleccionado es de ${diffDias} días corridos.\n\nPor favor selecciona un rango que no sobrepase 1 mes en días (máximo 31 días corridos).`);
+        return;
+      }
+      const hoy = new Date();
+      hoy.setHours(23, 59, 59, 999);
+      if (dInicio > hoy || dFin > hoy) {
+        alert('No se pueden seleccionar fechas futuras. Por favor, selecciona fechas anteriores o iguales al día de hoy.');
+        return;
+      }
+      const hoyStr = ahora.toISOString().split('T')[0];
+      if (fechaHasta >= hoyStr) {
+        alert('Estos datos son parciales (actualizados hasta el día de ayer). Los mismos son actualizados diariamente.');
+      }
     }
 
     setLoading(true);
     try {
-      const res = await axios.post(getApiUrl('/api/validaciones'), {
-        mes, anio, id_franja: idFranja, incluir_barrios: incluirBarrios
-      });
+      const payload = {
+        tipo_filtro_fecha: tipoFiltroFecha,
+        tipo_filtro_horario: tipoFiltroHorario,
+        incluir_barrios: incluirBarrios
+      };
+
+      if (tipoFiltroFecha === 'mes') {
+        payload.mes = mes;
+        payload.anio = anio;
+      } else {
+        payload.fecha_inicio = fechaDesde;
+        payload.fecha_fin = fechaHasta;
+      }
+
+      if (tipoFiltroHorario === 'franja') {
+        payload.id_franja = idFranja;
+      } else {
+        payload.hora_inicio = `${String(horaDesde).padStart(2, '0')}:00:00`;
+        payload.hora_fin = `${String(horaHasta).padStart(2, '0')}:59:59`;
+        payload.id_tipo_dia = tipoDia === 'todos' ? null : Number(tipoDia);
+      }
+
+      const res = await axios.post(getApiUrl('/api/validaciones'), payload);
       if(res.data.error){
         // Verificar si el error es por falta de datos
         if (res.data.error.toLowerCase().includes('no hay datos') || 
             res.data.error.toLowerCase().includes('sin datos') ||
             res.data.error.toLowerCase().includes('datos no disponibles')) {
-          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes o rango anterior o igual a las fechas disponibles.');
         } else {
           alert(res.data.error);
         }
       } else {
         // Verificar si realmente hay datos
         if (!res.data.geojson || !res.data.geojson.features || res.data.geojson.features.length === 0) {
-          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+          alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un período anterior o igual a las fechas disponibles.');
           return;
         }
         
@@ -538,7 +669,7 @@ export default function App(){
             err.response.data.error.toLowerCase().includes('sin datos') ||
             err.response.data.error.toLowerCase().includes('datos no disponibles')
           ))) {
-        alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un mes y año anterior o igual al mes actual.');
+        alert('No hay datos disponibles para el período seleccionado.\n\nLos datos disponibles son retroactivos. Por favor, selecciona un período anterior o igual a las fechas disponibles.');
       } else {
         const errorMessage = getErrorMessage(err);
         alert(errorMessage);
@@ -1111,13 +1242,25 @@ export default function App(){
     }
 
     try {
-      // Obtener la franja seleccionada para mostrar en el PDF
-      const franjaSeleccionada = franjas.find(f => f.id_franja === idFranja);
-      const franjaNombre = franjaSeleccionada 
-        ? `${franjaSeleccionada.denominacion} (${franjaSeleccionada.hora_inicio.substring(0,5)} - ${franjaSeleccionada.hora_fin.substring(0,5)}) - ${franjaSeleccionada.tipo_dia_descripcion}`
-        : 'No seleccionada';
+      // Obtener el período y horario seleccionados para mostrar en el PDF
+      let periodoTexto = '';
+      if (tipoFiltroFecha === 'mes') {
+        periodoTexto = `Mes: ${meses[mes - 1]} ${anio}`;
+      } else {
+        periodoTexto = `Período: ${fechaDesde} al ${fechaHasta} (${diasSeleccionados} días)`;
+      }
+
+      let horarioTexto = '';
+      if (tipoFiltroHorario === 'franja') {
+        const franjaSeleccionada = franjas.find(f => f.id_franja === idFranja);
+        horarioTexto = franjaSeleccionada 
+          ? `Franja: ${franjaSeleccionada.denominacion} (${franjaSeleccionada.hora_inicio.substring(0,5)} - ${franjaSeleccionada.hora_fin.substring(0,5)}) - ${franjaSeleccionada.tipo_dia_descripcion}`
+          : 'Franja: No seleccionada';
+      } else {
+        const tdNombre = tipoDia === '5' ? 'Día laboral (Lunes a Viernes)' : tipoDia === '6' ? 'Sábado' : tipoDia === '7' ? 'Domingos y Feriados' : 'Todos los días';
+        horarioTexto = `Horario: ${String(horaDesde).padStart(2, '0')}:00 a ${String(horaHasta).padStart(2, '0')}:59 - ${tdNombre}`;
+      }
       
-      const nombreMes = meses[mes - 1];
       const tipoArea = incluirBarrios ? 'Barrios' : 'Distritos';
 
       // Crear nuevo documento PDF
@@ -1138,9 +1281,9 @@ export default function App(){
       // Información del reporte
       pdf.setFontSize(11);
       pdf.setFont(undefined, 'normal');
-      pdf.text(`Mes: ${nombreMes} ${anio}`, margin, yPosition);
+      pdf.text(periodoTexto, margin, yPosition);
       yPosition += 6;
-      pdf.text(`Franja Operativa: ${franjaNombre}`, margin, yPosition);
+      pdf.text(horarioTexto, margin, yPosition);
       yPosition += 6;
       pdf.text(`Área: ${tipoArea}`, margin, yPosition);
       yPosition += 6;
@@ -1378,7 +1521,9 @@ export default function App(){
       }
 
       // Generar nombre del archivo
-      const nombreArchivo = `Validaciones_${nombreMes}_${anio}_${tipoArea}.pdf`;
+      const nombreArchivo = tipoFiltroFecha === 'mes'
+        ? `Validaciones_${meses[mes - 1]}_${anio}_${tipoArea}.pdf`
+        : `Validaciones_${fechaDesde}_al_${fechaHasta}_${tipoArea}.pdf`;
       pdf.save(nombreArchivo);
 
     } catch (error) {
@@ -1392,35 +1537,132 @@ export default function App(){
       <header className="topbar card" ref={headerRef}>
         <h2>Análisis de Validaciones</h2>
         <div className="controls">
-          <select value={mes} onChange={e=>setMes(Number(e.target.value))}>
-            {meses.map((nombre, i) => (
-              <option key={i+1} value={i+1}>{nombre}</option>
-            ))}
-          </select>
+          {/* Grupo Filtro Fecha */}
+          <div className="filter-group">
+            <select 
+              className="filter-mode-select" 
+              value={tipoFiltroFecha} 
+              onChange={e => setTipoFiltroFecha(e.target.value)}
+              title="Modalidad de filtro por fecha"
+            >
+              <option value="mes">📅 Por Mes</option>
+              <option value="rango">📅 Rango de Fechas (máx. 31 días)</option>
+            </select>
 
-          <select value={anio} onChange={e=>setAnio(Number(e.target.value))}>
-            {[2026,2025,2024,2023,2022].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+            {tipoFiltroFecha === 'mes' ? (
+              <>
+                <select value={mes} onChange={e=>setMes(Number(e.target.value))}>
+                  {meses.map((nombre, i) => (
+                    <option key={i+1} value={i+1}>{nombre}</option>
+                  ))}
+                </select>
 
-          <select 
-            value={idFranja || ''} 
-            onChange={e=>setIdFranja(Number(e.target.value))} 
-            disabled={franjas.length === 0}
-          >
-            {franjas.length === 0 ? (
-              <option value="">Cargando franjas...</option>
+                <select value={anio} onChange={e=>setAnio(Number(e.target.value))}>
+                  {[2026,2025,2024,2023,2022].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </>
             ) : (
-              franjas.map((franja) => {
-                const horaInicio = franja.hora_inicio.substring(0, 5);
-                const horaFin = franja.hora_fin.substring(0, 5);
-                return (
-                  <option key={franja.id_franja} value={franja.id_franja}>
-                    {franja.denominacion} ({horaInicio} - {horaFin}) - {franja.tipo_dia_descripcion}
-                  </option>
-                );
-              })
+              <div className="range-inputs">
+                <label className="input-label-inline">
+                  <span>Desde:</span>
+                  <input 
+                    type="date" 
+                    value={fechaDesde} 
+                    max={hoyFechaStr}
+                    onChange={handleFechaDesdeChange} 
+                    className="date-input"
+                  />
+                </label>
+                <label className="input-label-inline">
+                  <span>Hasta:</span>
+                  <input 
+                    type="date" 
+                    value={fechaHasta} 
+                    max={hoyFechaStr}
+                    onChange={handleFechaHastaChange} 
+                    className="date-input"
+                  />
+                </label>
+                <span className={`days-badge ${diasSeleccionados > 31 ? 'warning' : ''}`} title="Cantidad de días corridos en el rango seleccionado">
+                  {diasSeleccionados} d
+                </span>
+              </div>
             )}
-          </select>
+          </div>
+
+          {/* Grupo Filtro Horario */}
+          <div className="filter-group">
+            <select 
+              className="filter-mode-select" 
+              value={tipoFiltroHorario} 
+              onChange={e => setTipoFiltroHorario(e.target.value)}
+              title="Modalidad de filtro por horario"
+            >
+              <option value="franja">🕒 Franja Operativa</option>
+              <option value="rango">🕒 Rango Horario (00 - 23 hs)</option>
+            </select>
+
+            {tipoFiltroHorario === 'franja' ? (
+              <select 
+                value={idFranja || ''} 
+                onChange={e=>setIdFranja(Number(e.target.value))} 
+                disabled={franjas.length === 0}
+                style={{maxWidth: '280px'}}
+              >
+                {franjas.length === 0 ? (
+                  <option value="">Cargando franjas...</option>
+                ) : (
+                  franjas.map((franja) => {
+                    const horaInicio = franja.hora_inicio.substring(0, 5);
+                    const horaFin = franja.hora_fin.substring(0, 5);
+                    return (
+                      <option key={franja.id_franja} value={franja.id_franja}>
+                        {franja.denominacion} ({horaInicio} - {horaFin}) - {franja.tipo_dia_descripcion}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            ) : (
+              <div className="range-inputs">
+                <label className="input-label-inline">
+                  <span>De:</span>
+                  <select 
+                    value={horaDesde} 
+                    onChange={e => setHoraDesde(Number(e.target.value))}
+                    className="hour-select"
+                  >
+                    {HORAS_DEL_DIA.map(h => (
+                      <option key={h} value={h}>{String(h).padStart(2, '0')}:00 hs</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="input-label-inline">
+                  <span>A:</span>
+                  <select 
+                    value={horaHasta} 
+                    onChange={e => setHoraHasta(Number(e.target.value))}
+                    className="hour-select"
+                  >
+                    {HORAS_DEL_DIA.map(h => (
+                      <option key={h} value={h}>{String(h).padStart(2, '0')}:59 hs</option>
+                    ))}
+                  </select>
+                </label>
+                <select 
+                  value={tipoDia} 
+                  onChange={e => setTipoDia(e.target.value)}
+                  className="dia-select"
+                  title="Tipo de día a incluir"
+                >
+                  <option value="todos">Todos los días</option>
+                  <option value="5">Día laboral (L-V)</option>
+                  <option value="6">Sábado</option>
+                  <option value="7">Domingos y Feriados</option>
+                </select>
+              </div>
+            )}
+          </div>
 
           <label className="control-checkbox">
             <input type="checkbox" checked={incluirBarrios} onChange={e=>setIncluirBarrios(e.target.checked)} /> Incluir Barrios
@@ -1459,7 +1701,7 @@ export default function App(){
               />
               <MapController centerMap={centerMap} zoomToFeature={zoomToFeature} geoJsonLayerRef={geoJsonLayerRef} geojson={geojson} />
               <GeoJSON 
-                key={`geojson-${geojsonKey}-${idFranja}`}
+                key={`geojson-${geojsonKey}-${tipoFiltroHorario === 'franja' ? idFranja : `${horaDesde}-${horaHasta}-${tipoDia}`}-${tipoFiltroFecha === 'mes' ? `${mes}-${anio}` : `${fechaDesde}-${fechaHasta}`}`}
                 ref={geoJsonLayerRef}
                 data={geojson} 
                 style={styleFeature} 
@@ -1474,7 +1716,7 @@ export default function App(){
         <aside className="sidebar">
           <Legend min={computedStats.min} max={computedStats.max} criterio={criterio} />
           <div className="card totals">
-            <h3>Totales del sistema en el periodo y franja seleccionada {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
+            <h3>Totales del sistema ({tipoFiltroFecha === 'mes' ? `${meses[mes - 1]} ${anio}` : `${fechaDesde} al ${fechaHasta}`} | {tipoFiltroHorario === 'franja' ? (franjas.find(x => x.id_franja === idFranja)?.denominacion || 'Franja') : `${String(horaDesde).padStart(2, '0')}:00 a ${String(horaHasta).padStart(2, '0')}:59`}) {displayedTotals.desde_cache === 'Sí' ? <small>(cache)</small> : null}</h3>
             <div><b>Validaciones:</b> {typeof displayedTotals.validaciones === 'number' ? displayedTotals.validaciones.toLocaleString('es-PY') : displayedTotals.validaciones}</div>
             <div><b>Pasajeros:</b> {typeof displayedTotals.pasajeros === 'number' ? displayedTotals.pasajeros.toLocaleString('es-PY') : displayedTotals.pasajeros}{typeof displayedTotals.promedioPasajerosDiario === 'number' && displayedTotals.promedioPasajerosDiario > 0 ? ` / Prom. diario: ${displayedTotals.promedioPasajerosDiario.toLocaleString('es-PY', {minimumFractionDigits: 1, maximumFractionDigits: 1})}` : ''}</div>
             {displayedTotals.poblacionTotal > 0 && (
